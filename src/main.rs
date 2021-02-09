@@ -4,6 +4,7 @@ pub mod ui;
 pub mod tag;
 pub mod map;
 pub mod constant;
+pub mod pops;
 
 use bevy::{
     prelude::*,
@@ -19,6 +20,7 @@ use ui::*;
 use map::*;
 use tag::*;
 use constant::*;
+use pops::*;
 
 pub fn setup_assets(
     commands: &mut Commands,
@@ -196,6 +198,7 @@ fn main() {
         .add_system(change_zoom_system.system())
         .add_system(camera_zoom_system.system())
         .add_system(map_editor_painting_system.system())
+        .add_system(economic_system::<FarmerPopulation, FarmingResource>.system())
         .add_plugins(DefaultPlugins)
         .add_plugin(MapPlugin)
         .add_plugin(DiagnosticsPlugin::default())

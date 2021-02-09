@@ -3,6 +3,7 @@ use bevy::app::Plugin;
 use std::collections::HashMap;
 use std::sync::Arc;
 use super::tag::*;
+use super::pops::*;
 use super::constant::*;
 
 #[derive(Debug, Hash, PartialEq, Copy, Clone)]
@@ -103,6 +104,7 @@ pub enum MapTileType {
     None,
 }
 
+#[derive(Copy, Debug, Clone, PartialEq)]
 pub struct MapTile {
     pub tile_type: MapTileType,
 }
@@ -123,6 +125,12 @@ impl MapTileType {
             _ => TextureAtlasSprite::new(0),
         }
     }
+}
+
+#[derive(Copy, Debug, Clone, PartialEq)]
+pub struct BasicLand {
+    pub arable_factor: f32,
+    pub fertility: f32,
 }
 
 pub struct TileTextureAtlas(pub Handle<TextureAtlas>);
@@ -169,7 +177,14 @@ pub fn create_map_tile(
             ..Default::default()
         })
         .with(MapCoordinate { x, y })
-        .with(MapTile{ tile_type })
+        .with(MapTile{ tile_type });
+    if tile_type == MapTileType::Land {
+        commands
+            .with(FarmerPopulation { alive: 100 })
+            .with(FarmingResource { target: 1.0, current: 1.0 })
+            .with(GoodsStorage(HashMap::new()));
+    }
+    commands
         .current_entity()
         .unwrap()
 }
