@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
+use super::probability::*;
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EconomicGood {
@@ -8,6 +9,7 @@ pub enum EconomicGood {
 
 pub trait Population {
     fn alive(&self) -> usize;
+    fn set_alive(&mut self, alive: usize);
 }
 
 pub struct FarmerPopulation {
@@ -17,6 +19,10 @@ pub struct FarmerPopulation {
 impl Population for FarmerPopulation {
     fn alive(&self) -> usize {
         self.alive
+    }
+
+    fn set_alive(&mut self, alive: usize) {
+        self.alive = alive;
     }
 }
 
@@ -65,6 +71,25 @@ pub fn economic_system<T: 'static + Population + Send + Sync, U: 'static + Econo
 }
 
 pub fn demand_system<T: 'static + Population + Send + Sync, U: 'static + EconomicResource + Send + Sync>(
+) {
+
+}
+
+pub struct PopGrowthEvent(Entity, usize);
+pub struct PopGrowthEventSpawner {
+    pop_ent: Entity,
+}
+
+impl EventSpawner for PopGrowthEventSpawner {
+    type Event = PopGrowthEvent;
+
+    fn spawn(&self) -> Self::Event {
+        PopGrowthEvent(self.pop_ent, 10)
+    }
+}
+
+pub fn pop_growth_generator_system<T: 'static + Population + Send + Sync> (
+    pops_query: Query<(Entity, &T)>,
 ) {
 
 }

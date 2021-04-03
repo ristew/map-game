@@ -2,11 +2,12 @@ use bevy::prelude::*;
 use bevy::app::Plugin;
 use std::collections::HashMap;
 use std::sync::Arc;
+use serde::{Serialize, Deserialize};
 use super::tag::*;
 use super::pops::*;
 use super::constant::*;
 
-#[derive(Debug, Hash, PartialEq, Copy, Clone)]
+#[derive(Debug, Hash, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct MapCoordinate {
     pub x: isize,
     pub y: isize,
@@ -97,14 +98,14 @@ impl Iterator for MapCoordinateIter {
     }
 }
 
-#[derive(Copy, Debug, Clone, PartialEq)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MapTileType {
     Land,
     Water,
     None,
 }
 
-#[derive(Copy, Debug, Clone, PartialEq)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MapTile {
     pub tile_type: MapTileType,
 }
@@ -127,7 +128,7 @@ impl MapTileType {
     }
 }
 
-#[derive(Copy, Debug, Clone, PartialEq)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BasicLand {
     pub arable_factor: f32,
     pub fertility: f32,

@@ -22,30 +22,18 @@ production is not linear - every nth pop over limit provides less production
 pops * rate / 1 + surplus_pops / limit
 * economics
 ** trade flow
-surplus production is provided to trade network
-surplus agriculture output determined by land ownership and fertility
-goods flow through multiple places on route to consumption destination
-towns collect local surplus through trade gravity
-trade_distance function to calculate distances
-trade isn't feasible over long distances, especially for bulk goods
-all that grain gets eaten (or turned into beer I guess)
-surplus is shipped to closest city (generally on a river or the sea)
-here the city competes for grain with cities further down the chain
-
-** how to model supply and demand?
-pops need and want goods
-for each good, set a need threshold and a want threshold
-if under need, demand is twice as much if under want
-if food is under need, pop shrinks
-one pop has food need: 0.5 want: 1.0
-so if it's currently getting 0.7, demand would be 0.3
-but if it's getting 0.4, demand would be 1.2
-demand represents pops willingness to pay for a good, and unwillingness to sell it
-of cource, slaves/tenants are bound to give up some goods
-local supply and demand create prices
-money??????
-research how pre-money societies exchanged goods
-monetisation tracked with civilisation
+surplus production is provided to trade network surplus agriculture output determined by land ownership and fertility goods flow through multiple places on route to consumption destination towns collect local surplus through trade gravity trade_distance function to calculate distances trade isn't feasible over long distances, especially for bulk goods all that grain gets eaten (or turned into beer I guess) surplus is shipped to closest city (generally on a river or the sea) here the city competes for grain with cities further down the chain ** how to model supply and demand? pops need and want goods for each good, set a need threshold and a want threshold if under need, demand is twice as much if under want if food is under need, pop shrinks one pop has food need: 0.5 want: 1.0 so if it's currently getting 0.7, demand would be 0.3 but if it's getting 0.4, demand would be 1.2 demand represents pops willingness to pay for a good, and unwillingness to sell it of cource, slaves/tenants are bound to give up some goods local supply and demand create prices money?????? research how pre-money societies exchanged goods monetisation tracked with civilisation ** vicky 2 model if supply > demand, price decreases until it is a fraction of a goods default_price if supply < demand, price increases until it is a certain multiple of default price however, trade is global in vic 2, so here each market would have to track price, available supply, and demand market demand is increased from nearby markets can trade be performed in kind (forced to have equal trade)?
+** basics of trade
+at it's base, trade comes from the exploitation of a valuable resource
+*** examples of trade resources
+tyrian dye
+fish
+cedar
+grain
+oil
+wine
+gold and silver
+tin
 
 
 
@@ -56,3 +44,7 @@ zooming (argh)
 * architecture
  how to attach populations to tiles?
  Query<(&Population, &JobProvider)>
+
+* politics
+client states and vassals
+fast

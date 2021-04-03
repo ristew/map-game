@@ -10,3 +10,6 @@ edition = "2018"
 # bevy = "0.4"
 bevy = { git = "https://github.com/bevyengine/bevy" }
 rand = "*"
+serde = { version = "1.0", features = ["derive"] }
+
+serde_json = "1.0"

@@ -5,6 +5,7 @@ pub mod tag;
 pub mod map;
 pub mod constant;
 pub mod pops;
+pub mod probability;
 
 use bevy::{
     prelude::*,
