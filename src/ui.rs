@@ -1,12 +1,16 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use bevy::{
     prelude::*,
     render::camera::{Camera, OrthographicProjection, WindowOrigin, CameraProjection},
-    ecs::{DynamicBundle, EntityBuilder},
     input::mouse::MouseWheel,
-    math::clamp,
+    ecs::{
+        component::Component, system::EntityCommands
+    },
 };
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, TileMap};
+use super::save::*;
 
 pub struct UiMaterials {
     background_info: Handle<ColorMaterial>,
@@ -91,10 +95,10 @@ pub fn camera_zoom_system(
 }
 
 pub fn change_button_system(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut interaction_query: Query<
         (&UiButton, &Interaction),
-        (Mutated<Interaction>, With<Button>),
+        (Changed<Interaction>, With<Button>),
     >,
     mut map_editor_query: Query<&mut MapEditor>,
 ) {
@@ -117,6 +121,9 @@ pub fn change_button_system(
                     for mut map_editor in map_editor_query.iter_mut() {
                         map_editor.brush_size = v;
                     }
+                },
+                UiButtonType::SaveMap => {
+                    commands.add(SaveCommand);
                 }
             }
             // for (map_editor_entity, _) in map_editor_query.iter() {
@@ -161,120 +168,74 @@ pub struct SelectedInfoText(String);
 pub enum UiButtonType {
     ChangeTileType(MapTileType),
     BrushSizeType(usize),
+    SaveMap,
 }
 pub struct UiButton(UiButtonType);
 
 pub struct UiBuilder<'a> {
-    commands: &'a mut Commands,
     materials: Res<'a, UiMaterials>,
     default_font: Handle<Font>,
-    parent_stack: Vec<Entity>,
-    children_stack: Vec<Vec<Entity>>,
-    last_entity: Option<Entity>,
 }
 
 
 impl <'a> UiBuilder<'a> {
-    pub fn spawn(&mut self, bundle: impl Send + Sync + DynamicBundle + 'static) -> &mut Self {
-        self.commands.spawn(bundle);
-        self.last_entity = self.commands.current_entity();
-        let children_len = self.children_stack.len();
-        if children_len > 0 {
-            if let Some(mut children) = self.children_stack.get_mut(children_len - 1) {
-                children.push(self.last_entity.unwrap());
-            }
+    pub fn info_row(&self) -> NodeBundle {
+        self.info_row_material(UiMaterialType::BackgroundInfo)
+    }
+    pub fn info_row_material(&self, material_type: UiMaterialType) -> NodeBundle {
+        NodeBundle {
+            style: Style {
+                size: Size {
+                    width: Val::Auto,
+                    height: Val::Px(16.0),
+                },
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Stretch,
+                align_content: AlignContent::FlexStart,
+                justify_content: JustifyContent::FlexStart,
+                ..Default::default()
+            },
+            material: self.materials.from_material_type(material_type),
+            ..Default::default()
         }
-        self
     }
-    pub fn setup(&mut self) -> &mut Self {
-        self.spawn(OrthographicCameraBundle::new_2d())
-            .with(MapCamera)
-            .spawn(UiCameraBundle::default());
-        self
+    pub fn info_box(&self) -> NodeBundle {
+        self.info_box_material(UiMaterialType::BackgroundInfo)
     }
-    pub fn with(&mut self, component: impl Component) -> &mut Self {
-        self.commands.with(component);
-        self
-    }
-    pub fn children(&mut self) -> &mut Self {
-        self.children_stack.push(Vec::new());
-        self.parent_stack.push(self.last_entity.unwrap());
-        self
-    }
-    pub fn end_children(&mut self) -> &mut Self {
-        let parent = self.parent_stack.pop().unwrap();
-        let children = self.children_stack.pop().unwrap();
-        println!("children length: {}", children.len());
-        self.commands.push_children(parent, children.as_slice());
-        self
-    }
-    pub fn spawn_text_info<T>(&mut self, s: T) -> &mut Self where T: Into<String> {
-        let t = self.text_info(s);
-        self.spawn(t);
-        self
-    }
-    pub fn spawn_info_row(&mut self) -> &mut Self {
-        self.spawn_info_row_material(UiMaterialType::BackgroundInfo)
-    }
-    pub fn spawn_info_row_material(&mut self, material_type: UiMaterialType) -> &mut Self {
-        self.spawn(NodeBundle {
-                style: Style {
-                    size: Size {
-                        width: Val::Auto,
-                        height: Val::Px(16.0),
-                    },
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Stretch,
-                    align_content: AlignContent::FlexStart,
-                    justify_content: JustifyContent::FlexStart,
-                    ..Default::default()
+    pub fn info_box_material(&self, material_type: UiMaterialType) -> NodeBundle {
+        NodeBundle {
+            style: Style {
+                size: Size {
+                    width: Val::Percent(20.0),
+                    height: Val::Percent(50.0)
                 },
-                material: self.materials.from_material_type(material_type),
+                padding: Rect::all(Val::Px(5.0)),
+                flex_direction: FlexDirection::ColumnReverse,
+                align_items: AlignItems::Stretch,
+                align_content: AlignContent::FlexStart,
+                justify_content: JustifyContent::FlexStart,
                 ..Default::default()
-        })
+            },
+            material: self.materials.from_material_type(material_type),
+            ..Default::default()
+        }
     }
-    pub fn spawn_info_box(&mut self) -> &mut Self {
-        self.spawn_info_box_material(UiMaterialType::BackgroundInfo)
+    pub fn button(&self) -> ButtonBundle {
+        self.button_material(UiMaterialType::DefaultButton)
     }
-    pub fn spawn_info_box_material(&mut self, material_type: UiMaterialType) -> &mut Self {
-        self.spawn(NodeBundle {
-                style: Style {
-                    size: Size {
-                        width: Val::Percent(20.0),
-                        height: Val::Percent(50.0)
-                    },
-                    padding: Rect::all(Val::Px(5.0)),
-                    flex_direction: FlexDirection::ColumnReverse,
-                    align_items: AlignItems::Stretch,
-                    align_content: AlignContent::FlexStart,
-                    justify_content: JustifyContent::FlexStart,
-                    ..Default::default()
-                },
-                material: self.materials.from_material_type(material_type),
-                ..Default::default()
-            });
-        self
-    }
-    pub fn spawn_button(&mut self) -> &mut Self {
-        self.spawn_button_material(UiMaterialType::DefaultButton)
-    }
-    pub fn spawn_button_material(&mut self, material_type: UiMaterialType) -> &mut Self {
-        let b = self.button(material_type);
-        self.spawn(b)
-    }
-    pub fn spawn_text_button<T>(&mut self, ui_button_type: UiButtonType, s: T) -> &mut Self where T: Into<String> {
-        self.spawn_text_button_material(ui_button_type, s, UiMaterialType::DefaultButton)
-    }
-    pub fn spawn_text_button_material<T>(&mut self, ui_button_type: UiButtonType, s: T, material_type: UiMaterialType) -> &mut Self where T: Into<String> {
-        let t = self.text_info(s);
-        let b = self.button(material_type);
-        self.spawn(b)
-            .with(UiButton(ui_button_type))
-            .children()
-            .spawn(t)
-            .end_children()
-    }
-    pub fn text_info<T>(&mut self, s: T) -> TextBundle where T: Into<String> {
+    // pub fn spawn_text_button<T>(&'a mut self, ui_button_type: UiButtonType, s: T) -> NodeBundle where T: Into<String> {
+    //     self.text_button_material(ui_button_type, s, UiMaterialType::DefaultButton)
+    // }
+    // pub fn text_button_material<T>(&'a mut self, ui_button_type: UiButtonType, s: T, material_type: UiMaterialType) -> &mut Self where T: Into<String> {
+    //     let t = self.text_info(s);
+    //     let b = self.button(material_type);
+    //     self.spawn(b)
+    //         .with(UiButton(ui_button_type))
+    //         .children()
+    //         .spawn(t)
+    //         .end_children()
+    // }
+    pub fn text_info<T>(&self, s: T) -> TextBundle where T: Into<String> {
         TextBundle {
             text: Text::with_section(
                 s,
@@ -296,7 +257,7 @@ impl <'a> UiBuilder<'a> {
         }
     }
 
-    pub fn button(&mut self, material_type: UiMaterialType) -> ButtonBundle {
+    pub fn button_material(&self, material_type: UiMaterialType) -> ButtonBundle {
         ButtonBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Px(16.0)),
@@ -315,7 +276,7 @@ impl <'a> UiBuilder<'a> {
 }
 
 pub fn setup_ui_assets(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -328,47 +289,90 @@ pub fn setup_ui_assets(
     commands.insert_resource(ZoomLevel(1.0));
 }
 
+pub fn ui_info_box(
+    mut commands: Commands,
+    builder: UiBuilder,
+) -> Entity {
+    let mut info_box = commands
+        .spawn_bundle(builder.info_box());
+    info_box.insert(UiContainer);
+    info_box.with_children(|parent| {
+        parent.spawn_bundle(builder.text_info("Select a tile"))
+            .insert(SelectedInfoText("Select a tile".to_string()));
+        parent.spawn_bundle(builder.info_row()).with_children(|parent| {
+            parent.spawn_bundle(builder.button_material(UiMaterialType::WaterButton))
+                .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Water)))
+                .with_children(|parent| {
+                    parent.spawn_bundle(builder.text_info("Water"));
+                });
+            parent.spawn_bundle(builder.button_material(UiMaterialType::LandButton))
+                .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Land)))
+                .with_children(|parent| {
+                    parent.spawn_bundle(builder.text_info("Land"));
+                });
+        });
+        parent.spawn_bundle(builder.info_row()).with_children(|parent| {
+            parent.spawn_bundle(builder.button())
+                .insert(UiButton(UiButtonType::BrushSizeType(1)))
+                .with_children(|parent| {
+                    parent.spawn_bundle(builder.text_info("Brush 1"));
+                });
+            parent.spawn_bundle(builder.button())
+                .insert(UiButton(UiButtonType::BrushSizeType(3)))
+                .with_children(|parent| {
+                    parent.spawn_bundle(builder.text_info("Brush 3"));
+                });
+        });
+        parent.spawn_bundle(builder.button())
+            .insert(UiButton(UiButtonType::SaveMap))
+            .with_children(|parent| {
+                parent.spawn_bundle(builder.text_info("Save"));
+            });
+    });
+    info_box.id()
+}
+
 pub fn setup_ui<'a>(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     ui_materials: Res<'a, UiMaterials>
 ) {
     let default_font = asset_server.load("fonts/DejaVuSansMono.ttf");
-    commands.spawn((MapEditor::default(),));
+    commands.spawn_bundle((MapEditor::default(),));
     let mut builder = UiBuilder {
-        commands,
         materials: ui_materials,
         default_font: default_font,
-        children_stack: Default::default(),
-        parent_stack: Default::default(),
-        last_entity: None,
     };
 
-    builder
-        .setup()
-        .spawn_info_box()
-        .children()
-        .spawn_text_info("Select a tile")
-        .with(SelectedInfoText("Select a tile".to_string()))
-        .spawn_text_info("Tile details")
-        .spawn_text_info("Select a tile")
-        .spawn_info_row()
-        .children()
-        .spawn_text_button_material(
-            UiButtonType::ChangeTileType(MapTileType::Water),
-            "Water",
-            UiMaterialType::WaterButton,
-        )
-        .spawn_text_button_material(
-            UiButtonType::ChangeTileType(MapTileType::Land),
-            "Land",
-            UiMaterialType::LandButton,
-        )
-        .spawn_text_button_material(
-            UiButtonType::ChangeTileType(MapTileType::None),
-            "None",
-            UiMaterialType::DefaultButton,
-        )
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(MapCamera);
+    commands
+        .spawn_bundle(UiCameraBundle::default())
+        .insert(UiCamera);
+    ui_info_box(commands, builder);
+        // .children()
+        // .spawn_text_info("Select a tile")
+        // .with()
+        // .spawn_text_info("Tile details")
+        // .spawn_text_info("Select a tile")
+        // .spawn_info_row()
+        // .children()
+        // .spawn_text_button_material(
+        //     UiButtonType::ChangeTileType(MapTileType::Water),
+        //     "Water",
+        //     UiMaterialType::WaterButton,
+        // )
+        // .spawn_text_button_material(
+        //     UiButtonType::ChangeTileType(MapTileType::Land),
+        //     "Land",
+        //     UiMaterialType::LandButton,
+        // )
+        // .spawn_text_button_material(
+        //     UiButtonType::ChangeTileType(MapTileType::None),
+        //     "None",
+        //     UiMaterialType::DefaultButton,
+        // )
         // .spawn_button_material(UiMaterialType::WaterButton)
         // .with(ChangeTileType(MapTileType::Water))
         // .children()
@@ -384,20 +388,24 @@ pub fn setup_ui<'a>(
         // .children()
         // .spawn_text_info("None")
         // .end_children()
-        .end_children()
-        .spawn_info_row()
-        .children()
-        .spawn_text_button_material(
-            UiButtonType::BrushSizeType(1),
-            "Brush 1",
-            UiMaterialType::DefaultButton,
-        )
-        .spawn_text_button_material(
-            UiButtonType::BrushSizeType(3),
-            "Brush 3",
-            UiMaterialType::DefaultButton,
-        )
-        .end_children()
-        .end_children();
+        // .end_children()
+        // .spawn_info_row()
+        // .children()
+        // .spawn_text_button_material(
+        //     UiButtonType::BrushSizeType(1),
+        //     "Brush 1",
+        //     UiMaterialType::DefaultButton,
+        // )
+        // .spawn_text_button_material(
+        //     UiButtonType::BrushSizeType(3),
+        //     "Brush 3",
+        //     UiMaterialType::DefaultButton,
+        // )
+        // .end_children()
+        // .spawn_text_button(
+        //     UiButtonType::SaveMap,
+        //     "Save",
+        // )
+        // .end_children();
     println!("done with ui setup");
 }

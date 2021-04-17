@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use super::tag::*;
 use super::pops::*;
 use super::constant::*;
+use super::save::*;
 
 #[derive(Debug, Hash, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct MapCoordinate {
@@ -171,39 +172,69 @@ pub fn create_map_tile(
     tile_type: MapTileType
 ) -> Entity {
     let tile_material = tile_type.sprite();
-    commands
-        .spawn(SpriteSheetBundle {
+    let mut ent = commands
+        .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.0.as_weak(),
             sprite: tile_material,
             ..Default::default()
-        })
-        .with(MapCoordinate { x, y })
-        .with(MapTile{ tile_type });
+        });
+    ent.insert(MapCoordinate { x, y })
+        .insert(MapTile{ tile_type });
     if tile_type == MapTileType::Land {
-        commands
-            .with(FarmerPopulation { alive: 100 })
-            .with(FarmingResource { target: 1.0, current: 1.0 })
-            .with(GoodsStorage(HashMap::new()));
+        ent
+            .insert(FarmerPopulation { alive: 100 })
+            .insert(FarmingResource { target: 1.0, current: 1.0 })
+            .insert(GoodsStorage(HashMap::new()));
     }
-    commands
-        .current_entity()
-        .unwrap()
+
+    ent.id()
 }
 
 pub fn create_map(
-    commands: &mut Commands,
+    mut commands: Commands,
     texture_atlas_handle: Res<TileTextureAtlas>,
 ) {
     let mut map: TileMap = TileMap(HashMap::new());
     for i in 0..100 {
         for j in 0..100 {
             let coord = MapCoordinate { x: i, y: j - (i / 2) };
-            let tile = create_map_tile(commands, &texture_atlas_handle, i, j - (i / 2), MapTileType::Land);
+            let tile = create_map_tile(&mut commands, &texture_atlas_handle, i, j - (i / 2), MapTileType::Land);
             map.0.insert(MapCoordinate { x: i, y: j - (i / 2) }, Arc::new(tile));
         }
     }
 
     commands.insert_resource(map);
+}
+
+pub fn load_map(
+    entities: Vec<EntitySaveData>,
+    mut commands: Commands,
+    texture_atlas_handle: Res<TileTextureAtlas>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut map: TileMap = TileMap(HashMap::new());
+    for esd in entities {
+        let mut ecmds = commands.spawn();
+        macro_rules! load_component {
+            ( $name:ident ) => {
+                if let Some(c) = esd.$name {
+                    ecmds.insert(c);
+                }
+            }
+        }
+        if let Some(map_tile) = esd.map_tile {
+            let tile_material = map_tile.tile_type.sprite();
+            ecmds.insert_bundle(SpriteSheetBundle {
+                texture_atlas: texture_atlas_handle.0.as_weak(),
+                sprite: tile_material,
+                ..Default::default()
+            });
+            map.0.insert(esd.map_coordinate.unwrap(), Arc::new(ecmds.id()));
+        }
+        load_component!(map_coordinate);
+        load_component!(map_tile);
+    }
+    commands.insert_resource(map);
+    Ok(())
 }
 
 pub fn position_translation(windows: Res<Windows>, mut q: Query<(&MapCoordinate, &mut Transform)>) {
@@ -214,10 +245,9 @@ pub fn position_translation(windows: Res<Windows>, mut q: Query<(&MapCoordinate,
 }
 
 pub fn map_tile_type_changed_system(
-    mut query: Query<(&MapTile, &mut TextureAtlasSprite), Mutated<MapTile>>,
+    mut query: Query<(&MapTile, &mut TextureAtlasSprite), Changed<MapTile>>,
 ) {
     for (map_tile, mut sprite) in query.iter_mut() {
-        println!("change sprite");
         let new_sprite = map_tile.tile_type.sprite();
         sprite.index = new_sprite.index;
     }

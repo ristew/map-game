@@ -6,6 +6,7 @@ pub mod map;
 pub mod constant;
 pub mod pops;
 pub mod probability;
+pub mod save;
 
 use bevy::{
     prelude::*,
@@ -22,9 +23,10 @@ use map::*;
 use tag::*;
 use constant::*;
 use pops::*;
+use save::*;
 
 pub fn setup_assets(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>
@@ -41,21 +43,22 @@ fn camera_movement_system(
     mut q: Query<(&Camera, &mut Transform, &MapCamera)>
 ) {
     let mut translation: Vec3 = Vec3::new(0.0, 0.0, 0.0);
+    let camera_move_speed = 4.0;
     let mut moved = false;
     if keyboard_input.pressed(KeyCode::Left) {
-        translation.x -= 3.0;
+        translation.x -= camera_move_speed;
         moved = true;
     }
     if keyboard_input.pressed(KeyCode::Right) {
-        translation.x += 3.0;
+        translation.x += camera_move_speed;
         moved = true;
     }
     if keyboard_input.pressed(KeyCode::Down) {
-        translation.y -= 3.0;
+        translation.y -= camera_move_speed;
         moved = true;
     }
     if keyboard_input.pressed(KeyCode::Up) {
-        translation.y += 3.0;
+        translation.y += camera_move_speed;
         moved = true;
     }
     if moved {
@@ -66,16 +69,29 @@ fn camera_movement_system(
 }
 
 fn tile_hold_pressed_system(
-    commands: &mut Commands,
+    mut commands: Commands,
     windows: ResMut<Windows>,
     mouse_button_input: Res<Input<MouseButton>>,
     camera_query: Query<(&Camera, &Transform, &OrthographicProjection, &MapCamera)>,
     hold_pressed_query: Query<(Entity, &HoldPressed, &MapCoordinate)>,
+    ui_container_query: Query<(&UiContainer, &Node, &Transform)>,
     world_map: Res<TileMap>,
 ) {
     let window = windows.get_primary().unwrap();
     if mouse_button_input.pressed(MouseButton::Left) {
         if let Some(cur_pos) = window.cursor_position() {
+            // UI mouse occlusion
+            for (_, node, transform) in ui_container_query.iter() {
+                let nx = transform.translation.x;
+                let ny = transform.translation.y;
+
+                if cur_pos.x >= nx - node.size.x / 2.0 &&
+                    cur_pos.y >= ny - node.size.y / 2.0 &&
+                    cur_pos.x <= nx + node.size.x / 2.0 &&
+                    cur_pos.y <= ny + node.size.y / 2.0 {
+                        return;
+                    }
+            }
             for (camera, camera_transform, ortho_proj, _) in camera_query.iter() {
                 let world_pos = Vec2::new(
                     cur_pos.x + ortho_proj.left + camera_transform.translation.x,
@@ -85,27 +101,28 @@ fn tile_hold_pressed_system(
                 if let Some(entity) = world_map.0.get(&coord) {
                     for (last_hold_pressed_entity, _, held_coord) in hold_pressed_query.iter() {
                         if coord != *held_coord {
-                            commands.remove_one::<HoldPressed>(last_hold_pressed_entity);
+                            commands.entity(last_hold_pressed_entity).remove::<HoldPressed>();
                         }
                     }
-                    commands.insert_one(**entity, HoldPressed {});
+                    commands.entity(**entity).insert(HoldPressed {});
                 }
             }
         }
     } else if mouse_button_input.just_released(MouseButton::Left) {
         for (last_hold_pressed_entity, _, _) in hold_pressed_query.iter() {
-            commands.remove_one::<HoldPressed>(last_hold_pressed_entity);
+            commands.entity(last_hold_pressed_entity).remove::<HoldPressed>();
         }
     }
 }
 
 fn tile_select_system(
-    commands: &mut Commands,
+    mut commands: Commands,
     windows: ResMut<Windows>,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     camera_query: Query<(&Camera, &Transform, &OrthographicProjection, &MapCamera)>,
     selected_query: Query<(Entity, &Selected)>,
     select_outline_query: Query<(Entity, &SelectOutline)>,
+    ui_container_query: Query<(&UiContainer, &Node, &Transform)>,
     world_map: Res<TileMap>,
     texture_atlas_handle: Res<TileTextureAtlas>,
 ) {
@@ -113,6 +130,18 @@ fn tile_select_system(
     for event in mouse_button_input_events.iter() {
         if event.button == MouseButton::Left && event.state == ElementState::Pressed {
             if let Some(cur_pos) = window.cursor_position() {
+                // UI mouse occlusion
+                for (_, node, transform) in ui_container_query.iter() {
+                    let nx = transform.translation.x;
+                    let ny = transform.translation.y;
+
+                    if cur_pos.x >= nx - node.size.x / 2.0 &&
+                        cur_pos.y >= ny - node.size.y / 2.0 &&
+                        cur_pos.x <= nx + node.size.x / 2.0 &&
+                        cur_pos.y <= ny + node.size.y / 2.0 {
+                            return;
+                        }
+                }
                 for (camera, camera_transform, ortho_proj, _) in camera_query.iter() {
                     let world_pos = Vec2::new(
                         cur_pos.x + ortho_proj.left + camera_transform.translation.x,
@@ -122,18 +151,19 @@ fn tile_select_system(
                     if let Some(entity) = world_map.0.get(&coord) {
                         for (last_selected_entity, _) in selected_query.iter() {
                             println!("remove selected");
-                            commands.remove_one::<Selected>(last_selected_entity);
+                            commands.entity(last_selected_entity).remove::<Selected>();
                         }
                         for (select_outline, _) in select_outline_query.iter() {
                             println!("remove and despawn");
-                            commands.remove_one::<Sprite>(select_outline);
-                            commands.despawn(select_outline);
+                            commands.entity(select_outline)
+                                    .remove::<Sprite>()
+                                    .despawn();
                         }
-                        commands.insert_one(**entity, Selected {});
+                        let ecmds = commands.entity(**entity).insert(Selected);
                         let sprite = TextureAtlasSprite::new(0);
                         let (selected_x, selected_y) = coord.pixel_pos();
                         commands
-                            .spawn(SpriteSheetBundle {
+                            .spawn_bundle(SpriteSheetBundle {
                                 texture_atlas: texture_atlas_handle.0.as_weak(),
                                 sprite,
                                 transform: Transform {
@@ -142,8 +172,8 @@ fn tile_select_system(
                                 },
                                 ..Default::default()
                             })
-                            .with(SelectOutline)
-                            .with(coord);
+                            .insert(SelectOutline)
+                            .insert(coord);
                     }
                 }
             }
@@ -182,7 +212,7 @@ pub fn camera_view_check(
 }
 
 fn main() {
-    let mut world_setup = SystemStage::single(create_map.system());
+    let mut world_setup = SystemStage::single(load_map_system.system());
     let mut ui_setup = SystemStage::single(setup_ui.system());
 
     App::build()
