@@ -10,6 +10,7 @@ pub mod save;
 pub mod input;
 pub mod camera;
 pub mod time;
+pub mod province;
 
 use bevy::{
     prelude::*,

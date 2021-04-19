@@ -3,6 +3,8 @@ use bevy::app::Plugin;
 use std::collections::HashMap;
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
+use crate::province::ProvinceInfo;
+
 use super::pops::*;
 use super::constant::*;
 use super::save::*;
@@ -126,6 +128,13 @@ impl MapTileType {
             _ => TextureAtlasSprite::new(0),
         }
     }
+
+    pub fn base_fertility(&self) -> f64 {
+        match self {
+            MapTileType::Land => 10.0,
+            _ => 0.0,
+        }
+    }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -178,9 +187,11 @@ pub fn create_map_tile(
             ..Default::default()
         });
     ent.insert(MapCoordinate { x, y })
-        .insert(MapTile{ tile_type });
+       .insert(MapTile{ tile_type })
+        ;
     if tile_type == MapTileType::Land {
         ent
+            .insert(MapCoordinate { x, y })
             .insert(FarmerPopulation { alive: 100 })
             .insert(FarmingResource { target: 1.0, current: 1.0 })
             .insert(GoodsStorage(HashMap::new()));

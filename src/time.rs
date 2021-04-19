@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::tag::DateDisplay;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeEvent {
     Day,
     Month,

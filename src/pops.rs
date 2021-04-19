@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
-use crate::map::{MapCoordinate, MapTile, MapTileType};
+use crate::{map::{MapCoordinate, MapTile, MapTileType}, province::ProvinceInfos};
 use crate::time::*;
 use crate::probability::*;
 
@@ -121,12 +121,12 @@ pub struct FarmingPop {
 }
 
 pub struct BasePop {
-    size: usize,
-    culture: CultureRef,
-    religion: ReligionRef,
-    class: Class,
-    factors: Vec<String>,
-    resources: GoodsStorage,
+    pub size: usize,
+    pub culture: CultureRef,
+    pub religion: ReligionRef,
+    pub class: Class,
+    pub factors: Vec<String>,
+    pub resources: GoodsStorage,
 }
 
 pub fn farmer_production_system(
@@ -136,7 +136,24 @@ pub fn farmer_production_system(
     for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
         if current_date.days_after_doy(farming_pop.harvest_date) == 0 {
             println!("harvest");
-            base_pop.resources.add_resources(farming_pop.resource, 10.0);
+            let mut total_harvest = 10.0;
+            base_pop.resources.add_resources(farming_pop.resource, total_harvest);
+
+        }
+    }
+}
+
+fn pop_growth_system(
+    mut pop_query: Query<(&mut BasePop, &MapCoordinate)>,
+    pinfos: Res<ProvinceInfos>,
+    mut time_event_reader: EventReader<TimeEvent>,
+) {
+    for event in time_event_reader.iter() {
+        if *event == TimeEvent::Month {
+            for (mut pop, coord) in pop_query.iter_mut() {
+                pop.size += 5;
+                pinfos.0.get_mut(&coord).unwrap().total_population += 5;
+            }
         }
     }
 }
@@ -176,6 +193,7 @@ impl Plugin for PopPlugin {
         app
             .add_startup_system(setup_pops.system())
             .add_system(farmer_production_system.system())
+            .add_system(pop_growth_system.system())
             ;
 
     }

@@ -313,49 +313,85 @@ pub fn setup_ui_assets(
     commands.insert_resource(ZoomLevel(1.0));
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum InfoBoxMode {
+    MapDrawingMode,
+    ProvinceInfoMode,
+}
+
 pub fn ui_info_box(
     commands: &mut Commands,
     builder: &UiBuilder,
 ) -> Entity {
     let mut info_box = commands
         .spawn_bundle(builder.info_box());
-    info_box.insert(UiContainer);
-    info_box.with_children(|parent| {
-        parent.spawn_bundle(builder.text_info("Select a tile"))
-            .insert(SelectedInfoText("Select a tile".to_string()));
-        parent.spawn_bundle(builder.info_row()).with_children(|parent| {
-            parent.spawn_bundle(builder.button_material(UiMaterialType::WaterButton))
-                .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Water)))
-                .with_children(|parent| {
-                    parent.spawn_bundle(builder.text_info("Water"));
-                });
-            parent.spawn_bundle(builder.button_material(UiMaterialType::LandButton))
-                .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Land)))
-                .with_children(|parent| {
-                    parent.spawn_bundle(builder.text_info("Land"));
-                });
-        });
-        parent.spawn_bundle(builder.info_row()).with_children(|parent| {
-            parent.spawn_bundle(builder.button())
-                .insert(UiButton(UiButtonType::BrushSizeType(1)))
-                .with_children(|parent| {
-                    parent.spawn_bundle(builder.text_info("Brush 1"));
-                });
-            parent.spawn_bundle(builder.button())
-                .insert(UiButton(UiButtonType::BrushSizeType(3)))
-                .with_children(|parent| {
-                    parent.spawn_bundle(builder.text_info("Brush 3"));
-                });
-        });
-        parent.spawn_bundle(builder.button())
-            .insert(UiButton(UiButtonType::SaveMap))
-            .with_children(|parent| {
-                parent.spawn_bundle(builder.text_info("Save"));
+    info_box
+        .insert(UiContainer)
+        .insert(InfoBoxMode::MapDrawingMode)
+        .with_children(|parent| {
+            parent.spawn_bundle(builder.info_row()).with_children(|parent| {
+                parent.spawn_bundle(builder.button_material(UiMaterialType::WaterButton))
+                    .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Water)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("Water"));
+                    });
+                parent.spawn_bundle(builder.button_material(UiMaterialType::LandButton))
+                    .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Land)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("Land"));
+                    });
             });
-    });
+            parent.spawn_bundle(builder.info_row()).with_children(|parent| {
+                parent.spawn_bundle(builder.button())
+                    .insert(UiButton(UiButtonType::BrushSizeType(1)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("Brush 1"));
+                    });
+                parent.spawn_bundle(builder.button())
+                    .insert(UiButton(UiButtonType::BrushSizeType(3)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("Brush 3"));
+                    });
+            });
+            parent.spawn_bundle(builder.button())
+                .insert(UiButton(UiButtonType::SaveMap))
+                .with_children(|parent| {
+                    parent.spawn_bundle(builder.text_info("Save"));
+                });
+        });
     info_box.id()
 }
 
+pub fn province_info_box(
+    commands: &mut Commands,
+    builder: &UiBuilder,
+) -> Entity {
+    let mut province_info_box = commands
+        .spawn_bundle(builder.info_box());
+    province_info_box
+        .insert(UiContainer)
+        .insert(InfoBoxMode::ProvinceInfoMode)
+        .with_children(|parent| {
+            parent.spawn_bundle(builder.text_info("Select a tile"))
+                .insert(SelectedInfoText("Select a tile".to_string()));
+        })
+        ;
+    province_info_box.id()
+}
+
+fn info_box_system(
+    mut info_boxes: Query<(&InfoBoxMode, &mut Visible)>,
+    info_box_mode: Res<InfoBoxMode>,
+) {
+    for (box_mode, mut visible) in info_boxes.iter_mut() {
+        println!("{:?} {:?}", box_mode, *info_box_mode);
+        if *box_mode == *info_box_mode {
+            visible.is_visible = true;
+        } else {
+            visible.is_visible = false;
+        }
+    }
+}
 
 pub fn ui_info_bar(
     commands: &mut Commands,
@@ -404,6 +440,7 @@ pub fn setup_ui<'a>(
         .spawn_bundle(UiCameraBundle::default())
         .insert(UiCamera);
     ui_info_box(&mut commands, &builder);
+    province_info_box(&mut commands, &builder);
     let window = windows.get_primary().unwrap();
     ui_info_bar(&mut commands, &builder, window.height());
     println!("done with ui setup");
@@ -417,8 +454,10 @@ impl Plugin for UiPlugin {
         app
             .add_startup_system(setup_ui_assets.system())
             .add_startup_stage("ui_setup", ui_setup)
+            .insert_resource(InfoBoxMode::ProvinceInfoMode)
             .add_system(selected_info_system.system())
             .add_system(change_button_system.system())
+            .add_system(info_box_system.system())
             .add_system(info_bar_position_system.system());
     }
 }

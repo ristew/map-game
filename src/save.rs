@@ -16,7 +16,6 @@ pub struct EntitySaveData {
 
 /// Saves teh world, one entity at a time
 impl Command for SaveCommand {
-
     fn write(
         self: Box<Self>,
         world: &mut World,
