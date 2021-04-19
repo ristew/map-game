@@ -1,16 +1,13 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use bevy::{
     prelude::*,
-    render::camera::{Camera, OrthographicProjection, WindowOrigin, CameraProjection},
+    render::camera::{Camera, OrthographicProjection, CameraProjection},
     input::mouse::MouseWheel,
-    ecs::{
-        component::Component, system::EntityCommands
-    },
 };
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, TileMap};
 use super::save::*;
+
+const INFO_BAR_HEIGHT: f32 = 20.0;
 
 pub struct UiMaterials {
     background_info: Handle<ColorMaterial>,
@@ -38,11 +35,11 @@ pub enum UiMaterialType {
 }
 pub fn selected_info_system(
     selected_query: Query<(&MapCoordinate, &Selected)>,
-    mut ui_element_query: Query<(&mut SelectedInfoText, &mut Text, &Transform)>,
+    mut ui_element_query: Query<(&mut SelectedInfoText, &mut Text)>,
 ) {
     for (coord, _) in selected_query.iter() {
         let coord_string = format!("{}, {}", coord.x, coord.y);
-        for (mut info_text, mut text, transform) in ui_element_query.iter_mut() {
+        for (mut info_text, mut text) in ui_element_query.iter_mut() {
             info_text.0 = coord_string.clone();
             text.sections[0].value = coord_string.clone();
         }
@@ -82,17 +79,17 @@ pub fn change_zoom_system(
     }
 }
 
-pub fn camera_zoom_system(
-    zoom_level: Res<ZoomLevel>,
-    windows: Res<Windows>,
-) {
+// pub fn camera_zoom_system(
+//     zoom_level: Res<ZoomLevel>,
+//     windows: Res<Windows>,
+// ) {
     // for (_, mut projection) in camera_query.iter_mut() {
     //     let window = windows.get_primary().unwrap();
     //     let nw = window.width() / zoom_level.0;
     //     let nh = window.height() / zoom_level.0;
     //     projection.update(nw, nh);
     // }
-}
+// }
 
 pub fn change_button_system(
     mut commands: Commands,
@@ -220,6 +217,34 @@ impl <'a> UiBuilder<'a> {
             ..Default::default()
         }
     }
+    pub fn info_bar(&self, window_top: f32) -> NodeBundle {
+        self.info_bar_material(UiMaterialType::BackgroundInfo, window_top)
+    }
+    pub fn info_bar_material(&self, material_type: UiMaterialType, window_top: f32) -> NodeBundle {
+        println!("window top: {}", window_top);
+        NodeBundle {
+            style: Style {
+                size: Size {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(INFO_BAR_HEIGHT)
+                },
+                padding: Rect::all(Val::Px(5.0)),
+                flex_direction: FlexDirection::ColumnReverse,
+                align_items: AlignItems::Stretch,
+                align_content: AlignContent::FlexStart,
+                justify_content: JustifyContent::FlexStart,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Px(0.0),
+                    bottom: Val::Px(window_top - INFO_BAR_HEIGHT),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            material: self.materials.from_material_type(material_type),
+            ..Default::default()
+        }
+    }
     pub fn button(&self) -> ButtonBundle {
         self.button_material(UiMaterialType::DefaultButton)
     }
@@ -277,7 +302,6 @@ impl <'a> UiBuilder<'a> {
 
 pub fn setup_ui_assets(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.insert_resource(UiMaterials {
@@ -290,8 +314,8 @@ pub fn setup_ui_assets(
 }
 
 pub fn ui_info_box(
-    mut commands: Commands,
-    builder: UiBuilder,
+    commands: &mut Commands,
+    builder: &UiBuilder,
 ) -> Entity {
     let mut info_box = commands
         .spawn_bundle(builder.info_box());
@@ -332,14 +356,43 @@ pub fn ui_info_box(
     info_box.id()
 }
 
+
+pub fn ui_info_bar(
+    commands: &mut Commands,
+    builder: &UiBuilder,
+    window_top: f32,
+) -> Entity {
+    let mut info_bar = commands
+        .spawn_bundle(builder.info_bar(window_top));
+    info_bar
+        .insert(UiContainer)
+        .insert(InfoBar)
+        .with_children(|parent| {
+            parent.spawn_bundle(builder.text_info(""))
+                .insert(DateDisplay);
+        });
+
+    info_bar.id()
+}
+
+fn info_bar_position_system(
+    windows: Res<Windows>,
+    mut info_bar_query: Query<(&mut Style, &InfoBar)>,
+) {
+    for (mut style, _) in info_bar_query.iter_mut() {
+        style.position.bottom = Val::Px(windows.get_primary().unwrap().height() - INFO_BAR_HEIGHT);
+    }
+}
+
 pub fn setup_ui<'a>(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    ui_materials: Res<'a, UiMaterials>
+    ui_materials: Res<'a, UiMaterials>,
+    windows: Res<Windows>,
 ) {
     let default_font = asset_server.load("fonts/DejaVuSansMono.ttf");
     commands.spawn_bundle((MapEditor::default(),));
-    let mut builder = UiBuilder {
+    let builder = UiBuilder {
         materials: ui_materials,
         default_font: default_font,
     };
@@ -350,62 +403,22 @@ pub fn setup_ui<'a>(
     commands
         .spawn_bundle(UiCameraBundle::default())
         .insert(UiCamera);
-    ui_info_box(commands, builder);
-        // .children()
-        // .spawn_text_info("Select a tile")
-        // .with()
-        // .spawn_text_info("Tile details")
-        // .spawn_text_info("Select a tile")
-        // .spawn_info_row()
-        // .children()
-        // .spawn_text_button_material(
-        //     UiButtonType::ChangeTileType(MapTileType::Water),
-        //     "Water",
-        //     UiMaterialType::WaterButton,
-        // )
-        // .spawn_text_button_material(
-        //     UiButtonType::ChangeTileType(MapTileType::Land),
-        //     "Land",
-        //     UiMaterialType::LandButton,
-        // )
-        // .spawn_text_button_material(
-        //     UiButtonType::ChangeTileType(MapTileType::None),
-        //     "None",
-        //     UiMaterialType::DefaultButton,
-        // )
-        // .spawn_button_material(UiMaterialType::WaterButton)
-        // .with(ChangeTileType(MapTileType::Water))
-        // .children()
-        // .spawn_text_info("Water")
-        // .end_children()
-        // .spawn_button_material(UiMaterialType::LandButton)
-        // .with(ChangeTileType(MapTileType::Land))
-        // .children()
-        // .spawn_text_info("Land")
-        // .end_children()
-        // .spawn_button_material(UiMaterialType::DefaultButton)
-        // .with(ChangeTileType(MapTileType::None))
-        // .children()
-        // .spawn_text_info("None")
-        // .end_children()
-        // .end_children()
-        // .spawn_info_row()
-        // .children()
-        // .spawn_text_button_material(
-        //     UiButtonType::BrushSizeType(1),
-        //     "Brush 1",
-        //     UiMaterialType::DefaultButton,
-        // )
-        // .spawn_text_button_material(
-        //     UiButtonType::BrushSizeType(3),
-        //     "Brush 3",
-        //     UiMaterialType::DefaultButton,
-        // )
-        // .end_children()
-        // .spawn_text_button(
-        //     UiButtonType::SaveMap,
-        //     "Save",
-        // )
-        // .end_children();
+    ui_info_box(&mut commands, &builder);
+    let window = windows.get_primary().unwrap();
+    ui_info_bar(&mut commands, &builder, window.height());
     println!("done with ui setup");
+}
+
+pub struct UiPlugin;
+
+impl Plugin for UiPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        let ui_setup = SystemStage::single(setup_ui.system());
+        app
+            .add_startup_system(setup_ui_assets.system())
+            .add_startup_stage("ui_setup", ui_setup)
+            .add_system(selected_info_system.system())
+            .add_system(change_button_system.system())
+            .add_system(info_bar_position_system.system());
+    }
 }

@@ -1,9 +1,10 @@
-#+TITLE: Todo
+#+TITLE: Toodles
 * DONE upgrade bevy to 0.5
 lifetimes argh
 * DONE save map
 consider recursive variadic macro
 * DONE load map
+* TODO zooming
 * TODO terrain types
 * TODO basic pops
 * TODO time
@@ -12,4 +13,5 @@ consider recursive variadic macro
 * DONE ui mouse occlusion
 static ui elements like a game from 1997?
 * TODO ergonomic ui system
-* TODO organize code
+* TODO organize code into plugins
+* DONE eliminate warnings

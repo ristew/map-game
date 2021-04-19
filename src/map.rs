@@ -3,7 +3,6 @@ use bevy::app::Plugin;
 use std::collections::HashMap;
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
-use super::tag::*;
 use super::pops::*;
 use super::constant::*;
 use super::save::*;
@@ -40,7 +39,7 @@ impl MapCoordinate {
         let z = -x - y;
         let mut rx = x.round();
         let mut ry = y.round();
-        let mut rz = z.round();
+        let rz = z.round();
         let xdiff = (rx - x).abs();
         let ydiff = (ry - y).abs();
         let zdiff = (rz - z).abs();
@@ -48,8 +47,8 @@ impl MapCoordinate {
             rx = -ry - rz;
         } else if ydiff > zdiff {
             ry = -rx - rz;
-        } else {
-            rz = -rx - ry;
+        // } else {
+        //     rz = -rx - ry;
         }
         Self {
             x: rx as isize,
@@ -197,7 +196,6 @@ pub fn create_map(
     let mut map: TileMap = TileMap(HashMap::new());
     for i in 0..100 {
         for j in 0..100 {
-            let coord = MapCoordinate { x: i, y: j - (i / 2) };
             let tile = create_map_tile(&mut commands, &texture_atlas_handle, i, j - (i / 2), MapTileType::Land);
             map.0.insert(MapCoordinate { x: i, y: j - (i / 2) }, Arc::new(tile));
         }
@@ -237,7 +235,7 @@ pub fn load_map(
     Ok(())
 }
 
-pub fn position_translation(windows: Res<Windows>, mut q: Query<(&MapCoordinate, &mut Transform)>) {
+pub fn position_translation(mut q: Query<(&MapCoordinate, &mut Transform)>) {
     for (pos, mut transform) in q.iter_mut() {
         let (x, y) = pos.pixel_pos();
         transform.translation = Vec3::new(x, y, transform.translation.z);

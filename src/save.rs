@@ -47,8 +47,8 @@ impl Command for SaveCommand {
 }
 
 pub fn load_map_system(
-    mut commands: Commands,
-    mut commands2: Commands,
+    commands: Commands,
+    commands2: Commands,
     texture_atlas_handle: Res<TileTextureAtlas>,
     texture_atlas_handle2: Res<TileTextureAtlas>,
 ) {
@@ -60,7 +60,7 @@ pub fn load_map_system(
 }
 
 pub fn load_map_system_err(
-    mut commands: Commands,
+    commands: Commands,
     texture_atlas_handle: Res<TileTextureAtlas>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let save_file_name = "save.ron";

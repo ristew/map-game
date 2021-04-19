@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use rand::prelude::*;
 
 pub trait EventSpawner {
