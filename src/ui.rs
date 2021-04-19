@@ -380,15 +380,15 @@ pub fn province_info_box(
 }
 
 fn info_box_system(
-    mut info_boxes: Query<(&InfoBoxMode, &mut Visible)>,
+    mut info_boxes: Query<(&InfoBoxMode, &mut Style)>,
     info_box_mode: Res<InfoBoxMode>,
 ) {
-    for (box_mode, mut visible) in info_boxes.iter_mut() {
+    for (box_mode, mut style) in info_boxes.iter_mut() {
         println!("{:?} {:?}", box_mode, *info_box_mode);
         if *box_mode == *info_box_mode {
-            visible.is_visible = true;
+            style.display = Display::Flex;
         } else {
-            visible.is_visible = false;
+            style.display = Display::None;
         }
     }
 }
