@@ -11,11 +11,13 @@ pub mod input;
 pub mod camera;
 pub mod time;
 pub mod province;
+pub mod stage;
 
 use bevy::{
     prelude::*,
     diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin },
 };
+use province::ProvincePlugin;
 // fuck yo namespace
 use ui::*;
 use map::*;
@@ -26,6 +28,7 @@ use save::*;
 use input::*;
 use camera::*;
 use time::TimePlugin;
+use stage::*;
 
 pub fn setup_assets(
     mut commands: Commands,
@@ -40,11 +43,8 @@ pub fn setup_assets(
 
 
 fn main() {
-    let world_setup = SystemStage::single(load_map_system.system());
-
     App::build()
-        .add_startup_system(setup_assets.system())
-        .add_startup_stage("world_setup", world_setup)
+        .add_startup_system_to_stage(StartupStage::PreStartup, setup_assets.system())
         .add_system(camera_movement_system.system())
         .add_system(camera_view_check.system())
         .add_system(tile_select_system.system())
@@ -52,10 +52,12 @@ fn main() {
         .add_system(change_zoom_system.system())
         // .add_system(camera_zoom_system.system())
         .add_system(map_editor_painting_system.system())
-        .add_system(economic_system::<FarmerPopulation, FarmingResource>.system())
+        .add_system(info_box_change_system.system())
         .add_plugins(DefaultPlugins)
         .add_plugin(UiPlugin)
         .add_plugin(MapPlugin)
+        .add_plugin(PopPlugin)
+        .add_plugin(ProvincePlugin)
         .add_plugin(TimePlugin)
         .add_plugin(DiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())

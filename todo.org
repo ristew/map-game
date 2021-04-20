@@ -1,15 +1,25 @@
 #+TITLE: Toodles
 * TODO zooming
 * TODO terrain types
+plains
+hills
+mountains
+forest?
+swamp
+desert
+* TODO province modifiers
+coastal
 * TODO basic pops
 * TODO rivers
+run through center or along edges?
+center pros | center cons | edge pros | edge cons
 * TODO basic states
 static ui elements like a game from 1997?
 * TODO ergonomic ui system
-* TODO organize code into plugins
 * TODO create global shared storages for provinces
 RwLock<HashMap<>> => Dashmap
 * TODO create delayed messages for world writes
+* DONE organize code into plugins
 * DONE time
 * DONE ui mouse occlusion
 * DONE eliminate warnings

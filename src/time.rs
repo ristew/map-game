@@ -82,7 +82,7 @@ impl Plugin for TimePlugin {
                 month: 1,
                 year: 1,
             })
-            .insert_resource(DateTimer(Timer::from_seconds(2.0, true)))
+            .insert_resource(DateTimer(Timer::from_seconds(0.5, true)))
             .add_event::<TimeEvent>()
             .add_system(time_system.system());
     }

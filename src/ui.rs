@@ -3,6 +3,8 @@ use bevy::{
     render::camera::{Camera, OrthographicProjection, CameraProjection},
     input::mouse::MouseWheel,
 };
+use crate::province::ProvinceInfos;
+
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, TileMap};
 use super::save::*;
@@ -35,12 +37,13 @@ pub enum UiMaterialType {
 }
 pub fn selected_info_system(
     selected_query: Query<(&MapCoordinate, &Selected)>,
-    mut ui_element_query: Query<(&mut SelectedInfoText, &mut Text)>,
+    mut ui_element_query: Query<(&SelectedInfoText, &mut Text)>,
+    province_infos: Res<ProvinceInfos>,
 ) {
     for (coord, _) in selected_query.iter() {
-        let coord_string = format!("{}, {}", coord.x, coord.y);
-        for (mut info_text, mut text) in ui_element_query.iter_mut() {
-            info_text.0 = coord_string.clone();
+        let pinfo = province_infos.0.get(&coord).unwrap();
+        let coord_string = format!("{}, {}\npop: {}", coord.x, coord.y, pinfo.total_population);
+        for (_, mut text) in ui_element_query.iter_mut() {
             text.sections[0].value = coord_string.clone();
         }
     }
@@ -138,29 +141,32 @@ pub fn map_editor_painting_system(
     map_editor_query: Query<&MapEditor>,
     hold_pressed_tile_query: Query<(Entity, &HoldPressed, &MapCoordinate)>,
     world_map: Res<TileMap>,
+    info_box_mode: Res<InfoBoxMode>,
     mut map_tile_query: Query<&mut MapTile>,
 ) {
-    for map_editor in map_editor_query.iter() {
-        if let Some(change_tile_type) = map_editor.change_tile_type {
-            let mut change_entities = Vec::new();
-            for (e, _, coord) in hold_pressed_tile_query.iter() {
-                change_entities.push(e);
-                if map_editor.brush_size > 1 {
-                    for ent in world_map.neighbors_iter(*coord) {
-                        change_entities.push(*ent);
+    if *info_box_mode == InfoBoxMode::MapDrawingMode {
+        for map_editor in map_editor_query.iter() {
+            if let Some(change_tile_type) = map_editor.change_tile_type {
+                let mut change_entities = Vec::new();
+                for (e, _, coord) in hold_pressed_tile_query.iter() {
+                    change_entities.push(e);
+                    if map_editor.brush_size > 1 {
+                        for ent in world_map.neighbors_iter(*coord) {
+                            change_entities.push(*ent);
+                        }
                     }
                 }
-            }
-            for e in change_entities {
-                if let Ok(mut map_tile) = map_tile_query.get_mut(e) {
-                    map_tile.tile_type = change_tile_type;
+                for e in change_entities {
+                    if let Ok(mut map_tile) = map_tile_query.get_mut(e) {
+                        map_tile.tile_type = change_tile_type;
+                    }
                 }
             }
         }
     }
 }
 
-pub struct SelectedInfoText(String);
+pub struct SelectedInfoText;
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiButtonType {
     ChangeTileType(MapTileType),
@@ -373,7 +379,7 @@ pub fn province_info_box(
         .insert(InfoBoxMode::ProvinceInfoMode)
         .with_children(|parent| {
             parent.spawn_bundle(builder.text_info("Select a tile"))
-                .insert(SelectedInfoText("Select a tile".to_string()));
+                .insert(SelectedInfoText);
         })
         ;
     province_info_box.id()
@@ -384,7 +390,6 @@ fn info_box_system(
     info_box_mode: Res<InfoBoxMode>,
 ) {
     for (box_mode, mut style) in info_boxes.iter_mut() {
-        println!("{:?} {:?}", box_mode, *info_box_mode);
         if *box_mode == *info_box_mode {
             style.display = Display::Flex;
         } else {
@@ -417,6 +422,19 @@ fn info_bar_position_system(
 ) {
     for (mut style, _) in info_bar_query.iter_mut() {
         style.position.bottom = Val::Px(windows.get_primary().unwrap().height() - INFO_BAR_HEIGHT);
+    }
+}
+
+// TODO: fix this upstream?
+fn issue_1135_system(
+    mut text_style_visible_query: Query<(&Text, &Node, &mut Visible)>,
+) {
+    for (text, node, mut visible) in text_style_visible_query.iter_mut() {
+        if node.size == Vec2::ZERO {
+            visible.is_visible = false;
+        } else {
+            visible.is_visible = true;
+        }
     }
 }
 
@@ -458,6 +476,7 @@ impl Plugin for UiPlugin {
             .add_system(selected_info_system.system())
             .add_system(change_button_system.system())
             .add_system(info_box_system.system())
+            .add_system(issue_1135_system.system())
             .add_system(info_bar_position_system.system());
     }
 }

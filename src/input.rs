@@ -129,3 +129,45 @@ pub fn selected_highlight_system(
     }
 }
 
+
+pub fn camera_movement_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut q: Query<(&Camera, &mut Transform, &MapCamera)>
+) {
+    let mut translation: Vec3 = Vec3::new(0.0, 0.0, 0.0);
+    let camera_move_speed = 4.0;
+    let mut moved = false;
+    if keyboard_input.pressed(KeyCode::Left) {
+        translation.x -= camera_move_speed;
+        moved = true;
+    }
+    if keyboard_input.pressed(KeyCode::Right) {
+        translation.x += camera_move_speed;
+        moved = true;
+    }
+    if keyboard_input.pressed(KeyCode::Down) {
+        translation.y -= camera_move_speed;
+        moved = true;
+    }
+    if keyboard_input.pressed(KeyCode::Up) {
+        translation.y += camera_move_speed;
+        moved = true;
+    }
+    if moved {
+        for (_, mut transform, _) in q.iter_mut() {
+            transform.translation += translation;
+        }
+    }
+}
+
+pub fn info_box_change_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut info_box_mode: ResMut<InfoBoxMode>,
+) {
+    if keyboard_input.pressed(KeyCode::B) {
+        *info_box_mode = InfoBoxMode::MapDrawingMode;
+    }
+    if keyboard_input.pressed(KeyCode::N) {
+        *info_box_mode = InfoBoxMode::ProvinceInfoMode;
+    }
+}

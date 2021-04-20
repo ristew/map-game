@@ -4,10 +4,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use crate::province::ProvinceInfo;
+use crate::stage::InitStage;
 
-use super::pops::*;
-use super::constant::*;
-use super::save::*;
+use crate::pops::*;
+use crate::constant::*;
+use crate::save::*;
 
 #[derive(Debug, Hash, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct MapCoordinate {
@@ -220,6 +221,7 @@ pub fn load_map(
     mut commands: Commands,
     texture_atlas_handle: Res<TileTextureAtlas>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    println!("load map");
     let mut map: TileMap = TileMap(HashMap::new());
     for esd in entities {
         let mut ecmds = commands.spawn();
@@ -267,6 +269,8 @@ pub struct MapPlugin;
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
+            .add_startup_stage(InitStage::LoadMap, SystemStage::single_threaded())
+            .add_startup_system_to_stage(InitStage::LoadMap, load_map_system.system())
             .add_system(map_tile_type_changed_system.system())
             .add_system(position_translation.system());
     }

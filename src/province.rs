@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use dashmap::DashMap;
-use crate::{map::*, pops::BasePop};
+use crate::{map::*, pops::BasePop, stage::*};
 
 pub struct ProvinceInfos(pub DashMap<MapCoordinate, ProvinceInfo>);
 
@@ -14,6 +14,7 @@ fn province_setup(
     tile_query: Query<(&MapTile, &MapCoordinate)>,
     pop_query: Query<(&BasePop, &MapCoordinate)>,
 ) {
+    println!("province setup");
     for (tile, coord) in tile_query.iter() {
         province_infos.0.insert(*coord, ProvinceInfo {
             total_population: 0,
@@ -42,8 +43,9 @@ pub struct ProvincePlugin;
 impl Plugin for ProvincePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
+            .add_startup_stage_after(InitStage::LoadPops, InitStage::LoadProvinces, SystemStage::single_threaded())
+            .add_startup_system_to_stage(InitStage::LoadProvinces, province_setup.system())
             .insert_resource(ProvinceInfos(DashMap::new()))
-            .add_startup_system(province_setup.system())
             ;
     }
 }

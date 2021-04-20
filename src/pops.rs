@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{map::{MapCoordinate, MapTile, MapTileType}, province::ProvinceInfos};
 use crate::time::*;
 use crate::probability::*;
+use crate::stage::*;
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EconomicGood {
@@ -117,6 +118,7 @@ pub enum Class {
 }
 pub struct FarmingPop {
     resource: EconomicGood,
+    resource_base_harvest: f64,
     harvest_date: DayOfYear,
 }
 
@@ -131,14 +133,20 @@ pub struct BasePop {
 
 pub fn farmer_production_system(
     mut farmer_query: Query<(&mut BasePop, &FarmingPop, &MapCoordinate)>,
+    pinfos: Res<ProvinceInfos>,
     current_date: Res<Date>,
+    mut time_event_reader: EventReader<TimeEvent>,
 ) {
-    for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
-        if current_date.days_after_doy(farming_pop.harvest_date) == 0 {
-            println!("harvest");
-            let mut total_harvest = 10.0;
-            base_pop.resources.add_resources(farming_pop.resource, total_harvest);
+    for event in time_event_reader.iter() {
+        if *event == TimeEvent::Day {
+            for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
+                if current_date.days_after_doy(farming_pop.harvest_date) == 0 {
+                    println!("harvest");
+                    let total_harvest = 250.0 * pinfos.0.get(&coord).unwrap().fertility * base_pop.size as f64;
+                    base_pop.resources.add_resources(farming_pop.resource, total_harvest);
 
+                }
+            }
         }
     }
 }
@@ -162,7 +170,9 @@ fn setup_pops(
     mut commands: Commands,
     tiles_query: Query<(&MapCoordinate, &MapTile)>,
 ) {
+    println!("pop setup");
     for (coord, tile) in tiles_query.iter() {
+        println!("setup pops {:?}", coord);
         if tile.tile_type == MapTileType::Land {
             commands
                 .spawn()
@@ -179,7 +189,8 @@ fn setup_pops(
                     harvest_date: DayOfYear {
                         day: 15,
                         month: 1,
-                    }
+                    },
+                    resource_base_harvest: 250.0,
                 })
                 .insert(coord.clone());
         }
@@ -191,7 +202,8 @@ pub struct PopPlugin;
 impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
-            .add_startup_system(setup_pops.system())
+            .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
+            .add_startup_system_to_stage(InitStage::LoadPops, setup_pops.system())
             .add_system(farmer_production_system.system())
             .add_system(pop_growth_system.system())
             ;
