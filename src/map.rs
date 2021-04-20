@@ -10,16 +10,11 @@ use crate::pops::*;
 use crate::constant::*;
 use crate::save::*;
 
-#[derive(Debug, Hash, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct MapCoordinate {
     pub x: isize,
     pub y: isize,
 }
-
-impl Eq for MapCoordinate {
-
-}
-
 
 impl MapCoordinate {
     pub fn z(&self) -> isize {

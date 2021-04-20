@@ -4,6 +4,7 @@ use bevy::{
     input::mouse::MouseWheel,
 };
 use crate::province::ProvinceInfos;
+use crate::time::Date;
 
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, TileMap};
@@ -34,19 +35,6 @@ pub enum UiMaterialType {
     DefaultButton,
     LandButton,
     WaterButton,
-}
-pub fn selected_info_system(
-    selected_query: Query<(&MapCoordinate, &Selected)>,
-    mut ui_element_query: Query<(&SelectedInfoText, &mut Text)>,
-    province_infos: Res<ProvinceInfos>,
-) {
-    for (coord, _) in selected_query.iter() {
-        let pinfo = province_infos.0.get(&coord).unwrap();
-        let coord_string = format!("{}, {}\npop: {}", coord.x, coord.y, pinfo.total_population);
-        for (_, mut text) in ui_element_query.iter_mut() {
-            text.sections[0].value = coord_string.clone();
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -378,8 +366,10 @@ pub fn province_info_box(
         .insert(UiContainer)
         .insert(InfoBoxMode::ProvinceInfoMode)
         .with_children(|parent| {
-            parent.spawn_bundle(builder.text_info("Select a tile"))
-                .insert(SelectedInfoText);
+            parent.spawn_bundle(builder.text_info(""))
+                .insert(InfoTag::SelectedProvinceName);
+            parent.spawn_bundle(builder.text_info(""))
+                .insert(InfoTag::SelectedProvincePopulation);
         })
         ;
     province_info_box.id()
@@ -398,6 +388,69 @@ fn info_box_system(
     }
 }
 
+pub fn info_tag_system(
+    mut info_tag_query: Query<(&InfoTag, &mut Text)>,
+    selected_query: Query<(&MapCoordinate, &Selected)>,
+    province_infos: Res<ProvinceInfos>,
+    date: Res<Date>,
+) {
+    for (info_tag, mut text) in info_tag_query.iter_mut() {
+        println!("info_tag {:?}", info_tag);
+        let info_string = match *info_tag {
+            InfoTag::ProvincePopulation(coord) => format!("Total population: {}", province_infos.0.get(&coord).unwrap().total_population),
+            InfoTag::ProvinceName(coord) => format!("{:?}", coord),
+            InfoTag::SelectedProvinceName => {
+                if let Some((coord, _)) = selected_query.iter().next() {
+                    format!("{:?}", coord)
+                } else {
+                    "Select a province".to_string()
+                }
+            },
+            InfoTag::SelectedProvincePopulation => {
+                if let Some((coord, _)) = selected_query.iter().next() {
+                    format!("{:?}", province_infos.0.get(&coord).unwrap().total_population)
+                } else {
+                    "".to_string()
+                }
+            },
+            InfoTag::DateDisplay => format!("year {}, {}/{}", date.year, date.month, date.day),
+            t => format!("{:?}", t),
+        };
+        text.sections[0].value = info_string;
+    }
+}
+
+#[derive(Debug, Clone, Copy,)]
+pub enum InfoTag {
+    ProvincePopulation(MapCoordinate),
+    ProvinceName(MapCoordinate),
+    DateDisplay,
+    SelectedProvinceName,
+    SelectedProvincePopulation,
+}
+// descriptor to set ui and create changeable text objects
+pub enum UiComponent {
+    InfoText(InfoTag)
+}
+
+impl UiComponent {
+    fn render(
+        &self,
+        builder: &UiBuilder,
+        mut commands: Commands,
+    ) -> Entity {
+        let mut base = commands.spawn();
+        match self {
+            Self::InfoText(info_tag) => {
+                base.insert_bundle(builder.text_info(""))
+                    .insert(info_tag.clone());
+            }
+        };
+        base.id()
+    }
+}
+pub struct InfoBoxChangeCommand;
+
 pub fn ui_info_bar(
     commands: &mut Commands,
     builder: &UiBuilder,
@@ -410,7 +463,7 @@ pub fn ui_info_bar(
         .insert(InfoBar)
         .with_children(|parent| {
             parent.spawn_bundle(builder.text_info(""))
-                .insert(DateDisplay);
+                .insert(InfoTag::DateDisplay);
         });
 
     info_bar.id()
@@ -473,7 +526,7 @@ impl Plugin for UiPlugin {
             .add_startup_system(setup_ui_assets.system())
             .add_startup_stage("ui_setup", ui_setup)
             .insert_resource(InfoBoxMode::ProvinceInfoMode)
-            .add_system(selected_info_system.system())
+            .add_system(info_tag_system.system())
             .add_system(change_button_system.system())
             .add_system(info_box_system.system())
             .add_system(issue_1135_system.system())
