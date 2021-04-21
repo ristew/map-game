@@ -81,8 +81,8 @@ pub fn tile_select_system(
                 }
                 for (_, camera_transform, ortho_proj, _) in camera_query.iter() {
                     let world_pos = Vec2::new(
-                        cur_pos.x + ortho_proj.left + camera_transform.translation.x,
-                        cur_pos.y + ortho_proj.bottom + camera_transform.translation.y,
+                        (cur_pos.x + ortho_proj.left) * camera_transform.scale.x + camera_transform.translation.x,
+                        (cur_pos.y + ortho_proj.bottom) * camera_transform.scale.y + camera_transform.translation.y,
                     );
                     let coord = MapCoordinate::from_pixel_pos(world_pos);
                     if let Some(entity) = world_map.0.get(&coord) {
@@ -128,11 +128,12 @@ pub fn selected_highlight_system(
 
 pub fn camera_movement_system(
     keyboard_input: Res<Input<KeyCode>>,
-    mut q: Query<(&Camera, &mut Transform, &MapCamera)>
+    mut q: Query<(&Camera, &mut Transform, &MapCamera)>,
+    zoom_level: Res<ZoomLevel>,
     // mut q: Query<(&Camera, &mut Transform, &MapCamera)>
 ) {
     let mut translation: Vec3 = Vec3::new(0.0, 0.0, 0.0);
-    let camera_move_speed = 4.0;
+    let camera_move_speed = 4.0 * zoom_level.0;
     let mut moved = false;
     if keyboard_input.pressed(KeyCode::Left) {
         translation.x -= camera_move_speed;

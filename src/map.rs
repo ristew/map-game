@@ -201,8 +201,8 @@ pub fn create_map(
     texture_atlas_handle: Res<TileTextureAtlas>,
 ) {
     let mut map: TileMap = TileMap(HashMap::new());
-    for i in 0..100 {
-        for j in 0..100 {
+    for i in 0..250 {
+        for j in 0..250 {
             let tile = create_map_tile(&mut commands, &texture_atlas_handle, i, j - (i / 2), MapTileType::Land);
             map.0.insert(MapCoordinate { x: i, y: j - (i / 2) }, Arc::new(tile));
         }

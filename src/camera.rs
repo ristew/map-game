@@ -27,7 +27,7 @@ pub fn camera_view_check(
     }
 }
 
-pub struct ZoomLevel(f32);
+pub struct ZoomLevel(pub f32);
 
 pub fn change_zoom_system(
     mut mouse_wheel_events: EventReader<MouseWheel>,
