@@ -1,12 +1,9 @@
-use bevy::{
-    prelude::*,
-    render::camera::{Camera, OrthographicProjection},
-    input::{
+use bevy::{input::{
         ElementState,
         mouse::MouseButtonInput,
-    },
-};
+    }, prelude::*, render::{camera::{ActiveCameras, Camera, OrthographicProjection}, draw::OutsideFrustum}};
 use crate::*;
+
 
 pub fn tile_hold_pressed_system(
     mut commands: Commands,
@@ -34,8 +31,8 @@ pub fn tile_hold_pressed_system(
             }
             for (_, camera_transform, ortho_proj, _) in camera_query.iter() {
                 let world_pos = Vec2::new(
-                    cur_pos.x + ortho_proj.left + camera_transform.translation.x,
-                    cur_pos.y + ortho_proj.bottom + camera_transform.translation.y,
+                    (cur_pos.x + ortho_proj.left) * camera_transform.scale.x + camera_transform.translation.x,
+                    (cur_pos.y + ortho_proj.bottom) * camera_transform.scale.y + camera_transform.translation.y,
                 );
                 let coord = MapCoordinate::from_pixel_pos(world_pos);
                 if let Some(entity) = world_map.0.get(&coord) {
@@ -129,10 +126,10 @@ pub fn selected_highlight_system(
     }
 }
 
-
 pub fn camera_movement_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut q: Query<(&Camera, &mut Transform, &MapCamera)>
+    // mut q: Query<(&Camera, &mut Transform, &MapCamera)>
 ) {
     let mut translation: Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let camera_move_speed = 4.0;

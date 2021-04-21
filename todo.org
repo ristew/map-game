@@ -1,5 +1,4 @@
 #+TITLE: Toodles
-* TODO zooming
 * TODO terrain types
 plains
 hills
@@ -12,13 +11,19 @@ coastal
 * TODO basic pops
 * TODO rivers
 run through center or along edges?
-center pros | center cons | edge pros | edge cons
+| center pros            | edge pros                             |
+|------------------------+---------------------------------------|
+| easier pathfinding     | represent borders along rivers        |
+| vertexes are mapcoords | represent towns on the opposite sides |
+| curvy rendering        | paradox approved                      |
 * TODO basic states
 static ui elements like a game from 1997?
 * TODO ergonomic ui system
 * TODO create global shared storages for provinces
 RwLock<HashMap<>> => Dashmap
 * TODO create delayed messages for world writes
+* TODO draw a world map
+* DONE zooming
 * DONE organize code into plugins
 * DONE time
 * DONE ui mouse occlusion

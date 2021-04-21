@@ -1,7 +1,5 @@
 use bevy::{
     prelude::*,
-    render::camera::{Camera, OrthographicProjection, CameraProjection},
-    input::mouse::MouseWheel,
 };
 use crate::province::ProvinceInfos;
 use crate::time::Date;
@@ -52,35 +50,7 @@ impl Default for MapEditor {
     }
 }
 
-pub struct ZoomLevel(f32);
 
-pub fn change_zoom_system(
-    mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut zoom_level: ResMut<ZoomLevel>,
-    mut camera_query: Query<(&Camera, &mut OrthographicProjection, &MapCamera)>,
-) {
-    for event in mouse_wheel_events.iter() {
-        //zoom_level.0 = clamp(zoom_level.0 + event.y * 0.1, 0.5, 2.0);
-        zoom_level.0 += event.y * 0.1;
-        println!("zoom_level.0 {}", zoom_level.0);
-        for (_, mut projection, _) in camera_query.iter_mut() {
-            projection.scale = zoom_level.0;
-            println!("scale projection {:?}", projection.get_projection_matrix());
-        }
-    }
-}
-
-// pub fn camera_zoom_system(
-//     zoom_level: Res<ZoomLevel>,
-//     windows: Res<Windows>,
-// ) {
-    // for (_, mut projection) in camera_query.iter_mut() {
-    //     let window = windows.get_primary().unwrap();
-    //     let nw = window.width() / zoom_level.0;
-    //     let nh = window.height() / zoom_level.0;
-    //     projection.update(nw, nh);
-    // }
-// }
 
 pub fn change_button_system(
     mut commands: Commands,
@@ -197,12 +167,13 @@ impl <'a> UiBuilder<'a> {
         NodeBundle {
             style: Style {
                 size: Size {
-                    width: Val::Percent(20.0),
+                    width: Val::Px(200.0),
                     height: Val::Percent(50.0)
                 },
                 padding: Rect::all(Val::Px(5.0)),
                 flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::Stretch,
+                flex_wrap: FlexWrap::Wrap,
+                align_items: AlignItems::FlexStart,
                 align_content: AlignContent::FlexStart,
                 justify_content: JustifyContent::FlexStart,
                 ..Default::default()
@@ -260,16 +231,18 @@ impl <'a> UiBuilder<'a> {
                 s,
                 TextStyle {
                     font: self.default_font.clone(),
-                    font_size: 14.0,
+                    font_size: 12.0,
                     color: Color::BLACK,
                 },
                 Default::default(),
             ),
             style: Style {
-                size: Size {
-                    width: Val::Auto,
-                    height: Val::Px(16.0),
-                },
+                // size: Size {
+                //     width: Val::Auto,
+                //     height: Val::Px(16.0),
+                // },
+                max_size: Size::new(Val::Px(200.0), Val::Auto),
+                flex_wrap: FlexWrap::Wrap,
                 ..Default::default()
             },
             ..Default::default()
@@ -304,7 +277,6 @@ pub fn setup_ui_assets(
         land_button: materials.add(Color::rgb(0.2, 0.8, 0.2).into()),
         water_button: materials.add(Color::rgb(0.1, 0.2, 0.8).into()),
     });
-    commands.insert_resource(ZoomLevel(1.0));
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -395,7 +367,6 @@ pub fn info_tag_system(
     date: Res<Date>,
 ) {
     for (info_tag, mut text) in info_tag_query.iter_mut() {
-        println!("info_tag {:?}", info_tag);
         let info_string = match *info_tag {
             InfoTag::ProvincePopulation(coord) => format!("Total population: {}", province_infos.0.get(&coord).unwrap().total_population),
             InfoTag::ProvinceName(coord) => format!("{:?}", coord),
@@ -408,7 +379,7 @@ pub fn info_tag_system(
             },
             InfoTag::SelectedProvincePopulation => {
                 if let Some((coord, _)) = selected_query.iter().next() {
-                    format!("{:?}", province_infos.0.get(&coord).unwrap().total_population)
+                    format!("population: {:?}", province_infos.0.get(&coord).unwrap().total_population)
                 } else {
                     "".to_string()
                 }
@@ -504,12 +475,6 @@ pub fn setup_ui<'a>(
         default_font: default_font,
     };
 
-    commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(MapCamera);
-    commands
-        .spawn_bundle(UiCameraBundle::default())
-        .insert(UiCamera);
     ui_info_box(&mut commands, &builder);
     province_info_box(&mut commands, &builder);
     let window = windows.get_primary().unwrap();
