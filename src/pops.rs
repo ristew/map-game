@@ -172,7 +172,6 @@ fn setup_pops(
 ) {
     println!("pop setup");
     for (coord, tile) in tiles_query.iter() {
-        println!("setup pops {:?}", coord);
         if tile.tile_type == MapTileType::Land {
             commands
                 .spawn()

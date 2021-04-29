@@ -10,10 +10,10 @@ pub fn camera_view_check(
     mut visible_query: Query<(&Transform, &mut Visible, &MapCoordinate)>,
 ) {
     for (_, camera_transform, ortho_proj, _) in &mut camera_query.iter() {
-        let left_bound = ortho_proj.left * camera_transform.scale.x + camera_transform.translation.x - TILE_SIZE;
-        let right_bound = ortho_proj.right * camera_transform.scale.x + camera_transform.translation.x + TILE_SIZE;
-        let bottom_bound = ortho_proj.bottom * camera_transform.scale.y + camera_transform.translation.y - TILE_SIZE;
-        let top_bound = ortho_proj.top * camera_transform.scale.y + camera_transform.translation.y + TILE_SIZE;
+        let left_bound = ortho_proj.left * camera_transform.scale.x + camera_transform.translation.x - TILE_SIZE_X;
+        let right_bound = ortho_proj.right * camera_transform.scale.x + camera_transform.translation.x + TILE_SIZE_X;
+        let bottom_bound = ortho_proj.bottom * camera_transform.scale.y + camera_transform.translation.y - TILE_SIZE_Y;
+        let top_bound = ortho_proj.top * camera_transform.scale.y + camera_transform.translation.y + TILE_SIZE_Y;
         for (transform, mut visible, _) in visible_query.iter_mut() {
             if transform.translation.x < left_bound
                 || transform.translation.x > right_bound

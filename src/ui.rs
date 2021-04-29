@@ -5,7 +5,7 @@ use crate::province::ProvinceInfos;
 use crate::time::Date;
 
 use super::tag::*;
-use super::map::{MapCoordinate, MapTileType, MapTile, TileMap};
+use super::map::{MapCoordinate, MapTileType, MapTile, HexMap};
 use super::save::*;
 
 const INFO_BAR_HEIGHT: f32 = 20.0;
@@ -81,7 +81,7 @@ pub fn change_button_system(
                     }
                 },
                 UiButtonType::SaveMap => {
-                    commands.add(SaveCommand);
+                    commands.add(SaveMapCommand);
                 }
             }
             // for (map_editor_entity, _) in map_editor_query.iter() {
@@ -98,7 +98,7 @@ pub fn change_button_system(
 pub fn map_editor_painting_system(
     map_editor_query: Query<&MapEditor>,
     hold_pressed_tile_query: Query<(Entity, &HoldPressed, &MapCoordinate)>,
-    world_map: Res<TileMap>,
+    world_map: Res<HexMap>,
     info_box_mode: Res<InfoBoxMode>,
     mut map_tile_query: Query<&mut MapTile>,
 ) {
@@ -379,7 +379,8 @@ pub fn info_tag_system(
             },
             InfoTag::SelectedProvincePopulation => {
                 if let Some((coord, _)) = selected_query.iter().next() {
-                    format!("population: {:?}", province_infos.0.get(&coord).unwrap().total_population)
+                    // monads and strife
+                    format!("population: {:?}", province_infos.0.get(&coord).map(|pinfo| pinfo.total_population).unwrap_or(0))
                 } else {
                     "".to_string()
                 }

@@ -14,6 +14,7 @@ pub mod province;
 pub mod stage;
 
 use bevy::{diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
+use bevy_tilemap::prelude::TilemapDefaultPlugins;
 use province::ProvincePlugin;
 // fuck yo namespace
 use ui::*;
@@ -50,6 +51,7 @@ fn main() {
         .add_system(info_box_change_system.system())
         // .insert_resource(SpriteSettings { frustum_culling_enabled: true })
         .add_plugins(DefaultPlugins)
+        .add_plugins(TilemapDefaultPlugins)
         .add_plugin(UiPlugin)
         .add_plugin(CameraPlugin)
         .add_plugin(MapPlugin)

@@ -6,21 +6,21 @@ use serde::{Serialize, Deserialize};
 
 use super::map::*;
 
-pub struct SaveCommand;
+pub struct SaveMapCommand;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EntitySaveData {
+pub struct MapEntitySaveData {
     pub map_coordinate: Option<MapCoordinate>,
     pub map_tile: Option<MapTile>,
 }
 
 /// Saves teh world, one entity at a time
-impl Command for SaveCommand {
+impl Command for SaveMapCommand {
     fn write(
         self: Box<Self>,
         world: &mut World,
     ) {
-        let save_file_name = "save.ron";
+        let save_file_name = "map.ron";
         let mut file = File::create(save_file_name).unwrap();
         let mut entities = Vec::new();
         for ent in world.query::<Entity>().iter(world) {
@@ -34,7 +34,7 @@ impl Command for SaveCommand {
                 }
             }
 
-            let esd = EntitySaveData {
+            let esd = MapEntitySaveData {
                 map_coordinate: component!(MapCoordinate),
                 map_tile: component!(MapTile),
             };
@@ -46,27 +46,11 @@ impl Command for SaveCommand {
 }
 
 pub fn load_map_system(
-    commands: Commands,
-    commands2: Commands,
-    texture_atlas_handle: Res<TileTextureAtlas>,
-    texture_atlas_handle2: Res<TileTextureAtlas>,
+    mut load_map: ResMut<LoadMap>,
 ) {
-    if let Err(e) = load_map_system_err(commands, texture_atlas_handle) {
+    if let Err(e) = File::open("map.ron") {
         eprintln!("error loading map: {}", e);
-        create_map(commands2, texture_atlas_handle2);
+        create_map();
     }
-
-}
-
-pub fn load_map_system_err(
-    commands: Commands,
-    texture_atlas_handle: Res<TileTextureAtlas>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let save_file_name = "save.ron";
-    let mut file = File::open(save_file_name)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    let entities: Vec<EntitySaveData> = serde_json::from_str(&contents)?;
-    // println!("{:?}", entities);
-    load_map(entities, commands, texture_atlas_handle)
+    load_map.0 = Some("map.ron".to_string());
 }

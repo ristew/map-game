@@ -12,7 +12,7 @@ pub fn tile_hold_pressed_system(
     camera_query: Query<(&Camera, &Transform, &OrthographicProjection, &MapCamera)>,
     hold_pressed_query: Query<(Entity, &HoldPressed, &MapCoordinate)>,
     ui_container_query: Query<(&UiContainer, &Node, &Transform)>,
-    world_map: Res<TileMap>,
+    world_map: Res<HexMap>,
 ) {
     let window = windows.get_primary().unwrap();
     if mouse_button_input.pressed(MouseButton::Left) {
@@ -60,7 +60,7 @@ pub fn tile_select_system(
     selected_query: Query<(Entity, &Selected)>,
     select_outline_query: Query<(Entity, &SelectOutline)>,
     ui_container_query: Query<(&UiContainer, &Node, &Transform)>,
-    world_map: Res<TileMap>,
+    world_map: Res<HexMap>,
     texture_atlas_handle: Res<TileTextureAtlas>,
 ) {
     let window = windows.get_primary().unwrap();
