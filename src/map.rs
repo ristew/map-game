@@ -23,12 +23,14 @@ impl MapCoordinate {
     }
 
     pub fn pixel_pos(&self) -> (f32, f32) {
-        (TILE_SIZE_X * 1.5 * (self.x as f32), TILE_SIZE_Y * SQRT_3 * ((self.y as f32) + 0.5 * (self.x as f32)))
+        (TILE_SIZE_X * (self.x as f32),
+         TILE_SIZE_Y * ((self.y as f32) + 0.5 * (self.x as f32) + 1.0))
     }
 
     pub fn from_pixel_pos(pos: Vec2) -> Self {
-        let coord_x = pos.x / (TILE_SIZE_X);
-        let coord_y = (SQRT_3 * pos.y - pos.x) / (TILE_SIZE_Y);
+        let coord_x = pos.x / TILE_SIZE_X;
+        let coord_y = pos.y / TILE_SIZE_Y - 0.5 * pos.x / TILE_SIZE_X - 1.0;
+        println!("{}, {}, {}", coord_x, coord_y, -coord_x - coord_y);
         Self::from_cube_round(Vec2::new(coord_x, coord_y))
     }
 
@@ -42,6 +44,8 @@ impl MapCoordinate {
         let xdiff = (rx - x).abs();
         let ydiff = (ry - y).abs();
         let zdiff = (rz - z).abs();
+        println!("{}, {}, {}", rx, ry, rz);
+        println!("{}, {}, {}", xdiff, ydiff, zdiff);
         if xdiff > ydiff && xdiff > zdiff {
             rx = -ry - rz;
         } else if ydiff > zdiff {
