@@ -116,6 +116,7 @@ pub fn map_editor_painting_system(
                 }
                 for e in change_entities {
                     if let Ok(mut map_tile) = map_tile_query.get_mut(e) {
+                        println!("change tile type: {:?}", map_tile.tile_type);
                         map_tile.tile_type = change_tile_type;
                     }
                 }
@@ -362,7 +363,7 @@ fn info_box_system(
 
 pub fn info_tag_system(
     mut info_tag_query: Query<(&InfoTag, &mut Text)>,
-    selected_query: Query<(&MapCoordinate, &Selected)>,
+    selected_query: Query<(&MapCoordinate, &MapTile, &Selected)>,
     province_infos: Res<ProvinceInfos>,
     date: Res<Date>,
 ) {
@@ -371,14 +372,14 @@ pub fn info_tag_system(
             InfoTag::ProvincePopulation(coord) => format!("Total population: {}", province_infos.0.get(&coord).unwrap().total_population),
             InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             InfoTag::SelectedProvinceName => {
-                if let Some((coord, _)) = selected_query.iter().next() {
-                    format!("{:?}", coord)
+                if let Some((coord, map_tile, _)) = selected_query.iter().next() {
+                    format!("{:?}, {:?}, {:?}", coord, coord.pixel_pos(), map_tile.tile_type)
                 } else {
                     "Select a province".to_string()
                 }
             },
             InfoTag::SelectedProvincePopulation => {
-                if let Some((coord, _)) = selected_query.iter().next() {
+                if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     // monads and strife
                     format!("population: {:?}", province_infos.0.get(&coord).map(|pinfo| pinfo.total_population).unwrap_or(0))
                 } else {

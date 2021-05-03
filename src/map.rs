@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, convert::TryInto, fs::File, io::{Read
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
-use crate::province::ProvinceInfo;
+use crate::{province::ProvinceInfo, stage::FinishStage};
 use crate::stage::InitStage;
 
 use crate::pops::*;
@@ -23,13 +23,14 @@ impl MapCoordinate {
     }
 
     pub fn pixel_pos(&self) -> (f32, f32) {
-        (TILE_SIZE_X * (self.x as f32),
-         TILE_SIZE_Y * ((self.y as f32) + 0.5 * (self.x as f32) + 1.0))
+        let tile_x = (TILE_SIZE_X - 10.0) * (self.x as f32) + 10.0;
+        (tile_x,
+         TILE_SIZE_Y * (self.y as f32 + 1.0 + 0.5 * self.x as f32))
     }
 
     pub fn from_pixel_pos(pos: Vec2) -> Self {
-        let coord_x = pos.x / TILE_SIZE_X;
-        let coord_y = pos.y / TILE_SIZE_Y - 0.5 * pos.x / TILE_SIZE_X - 1.0;
+        let coord_x = (pos.x - 10.0) / (TILE_SIZE_X - 10.0);
+        let coord_y = pos.y / TILE_SIZE_Y - 0.5 * coord_x - 1.0;
         println!("{}, {}, {}", coord_x, coord_y, -coord_x - coord_y);
         Self::from_cube_round(Vec2::new(coord_x, coord_y))
     }
@@ -46,7 +47,7 @@ impl MapCoordinate {
         let zdiff = (rz - z).abs();
         println!("{}, {}, {}", rx, ry, rz);
         println!("{}, {}, {}", xdiff, ydiff, zdiff);
-        if xdiff > ydiff && xdiff > zdiff {
+        if xdiff > ydiff + zdiff {
             rx = -ry - rz;
         } else if ydiff > zdiff {
             ry = -rx - rz;
@@ -257,6 +258,7 @@ fn load_tile_map_system(
         let texture_atlas = texture_atlas_builder.finish(&mut textures).unwrap();
         macro_rules! load_tile_sprite_index {
             ( $tt:ident ) => {
+                println!("load {}", stringify!($tt));
                 let texture: Handle<Texture> = asset_server.get_handle(format!("textures/{}.png", stringify!($tt)).as_str());
                 tile_sprite_indices.0.insert(MapTileType::$tt, texture_atlas.get_texture_index(&texture).unwrap());
             }
@@ -301,7 +303,7 @@ fn build_world(
     if load_map.0 == None {
         return;
     }
-        if let Some(mut map) = query.iter_mut().next() {
+    if let Some(mut map) = query.iter_mut().next() {
         println!("build world");
         let save_file_name = load_map.0.as_ref().unwrap();
         println!("save file: {}", save_file_name);
@@ -312,7 +314,6 @@ fn build_world(
         println!("process map");
         // let mut tiles = Vec::new();
         for esd in &entities {
-            println!("process entity");
             let mut ecmds = commands.spawn();
             macro_rules! load_component {
                 ( $name:ident ) => {
@@ -335,9 +336,7 @@ fn build_world(
                     sprite_index: *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap(),
                     ..Default::default()
                 });
-                println!("spawn chunk: {:?} {:?}", point, map.point_to_chunk_point(point));
                 map.spawn_chunk_containing_point(point).unwrap();
-                println!("spawn tile");
             }
             load_component!(map_coordinate);
             load_component!(map_tile);
@@ -364,12 +363,24 @@ pub fn position_translation(mut q: Query<(&MapCoordinate, &mut Transform)>) {
 }
 
 fn map_tile_type_changed_system(
-    mut query: Query<(&MapTile, &mut TextureAtlasSprite), Changed<MapTile>>,
+    query: Query<(&MapTile, &MapCoordinate), Changed<MapTile>>,
     tile_sprite_indices: Res<TileSpriteIndices>,
+    load_map: Res<LoadMap>,
+    mut tile_map_query: Query<&mut Tilemap>,
 ) {
-    for (map_tile, mut sprite) in query.iter_mut() {
-        let new_sprite = *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap();
-        sprite.index = new_sprite as u32;
+    if load_map.0 != None {
+        println!("wait for load map?");
+        return;
+    }
+    for (map_tile, coord) in query.iter() {
+        for mut tile_map in tile_map_query.iter_mut() {
+            println!("map tile type changed {:?}", coord);
+            if let Some(mut tile) = tile_map.get_tile_mut(coord.point3(), 0) {
+                println!("got tile");
+                let new_sprite = *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap();
+                tile.index = new_sprite;
+            }
+        }
     }
 }
 
@@ -385,9 +396,10 @@ impl Plugin for MapPlugin {
             .init_resource::<TileSpriteIndices>()
             .insert_resource(LoadMap(None))
             .insert_resource(HexMap(HashMap::new()))
+            .add_stage_after(CoreStage::PostUpdate, FinishStage::Main, SystemStage::single_threaded())
             .add_system(load_tile_map_system.system())
             .add_system(build_world.system())
-            .add_system(map_tile_type_changed_system.system())
+            .add_system_to_stage(FinishStage::Main, map_tile_type_changed_system.system())
             .add_system(position_translation.system());
     }
 }

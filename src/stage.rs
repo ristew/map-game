@@ -6,3 +6,8 @@ pub enum InitStage {
     LoadPops,
     LoadProvinces,
 }
+
+#[derive(StageLabel, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum FinishStage {
+    Main
+}
