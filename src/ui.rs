@@ -13,8 +13,10 @@ const INFO_BAR_HEIGHT: f32 = 20.0;
 pub struct UiMaterials {
     background_info: Handle<ColorMaterial>,
     default_button: Handle<ColorMaterial>,
-    land_button: Handle<ColorMaterial>,
+    plains_button: Handle<ColorMaterial>,
     water_button: Handle<ColorMaterial>,
+    desert_button: Handle<ColorMaterial>,
+    mountain_button: Handle<ColorMaterial>,
 }
 
 impl UiMaterials {
@@ -22,8 +24,10 @@ impl UiMaterials {
         match material_type {
             UiMaterialType::BackgroundInfo => self.background_info.clone(),
             UiMaterialType::DefaultButton => self.default_button.clone(),
-            UiMaterialType::LandButton => self.land_button.clone(),
+            UiMaterialType::PlainsButton => self.plains_button.clone(),
             UiMaterialType::WaterButton => self.water_button.clone(),
+            UiMaterialType::DesertButton => self.desert_button.clone(),
+            UiMaterialType::MountainButton => self.mountain_button.clone(),
         }
     }
 }
@@ -31,8 +35,10 @@ impl UiMaterials {
 pub enum UiMaterialType {
     BackgroundInfo,
     DefaultButton,
-    LandButton,
+    PlainsButton,
     WaterButton,
+    MountainButton,
+    DesertButton,
 }
 
 #[derive(Debug)]
@@ -70,14 +76,14 @@ pub fn change_button_system(
                     }
                 },
                 UiButtonType::ChangeTileType(typ) => {
-                    println!("paint mode");
+                    println!("paint mode {:?}", typ);
                     for mut map_editor in map_editor_query.iter_mut() {
                         map_editor.change_tile_type = Some(typ);
                     }
                 },
                 UiButtonType::BrushSizeType(v) => {
                     for mut map_editor in map_editor_query.iter_mut() {
-                        map_editor.brush_size = v;
+                        map_editor.brush_size += v as usize;
                     }
                 },
                 UiButtonType::SaveMap => {
@@ -108,10 +114,8 @@ pub fn map_editor_painting_system(
                 let mut change_entities = Vec::new();
                 for (e, _, coord) in hold_pressed_tile_query.iter() {
                     change_entities.push(e);
-                    if map_editor.brush_size > 1 {
-                        for ent in world_map.neighbors_iter(*coord) {
-                            change_entities.push(*ent);
-                        }
+                    for ent in world_map.neighbors_in_radius_iter(*coord, map_editor.brush_size as isize) {
+                        change_entities.push(*ent);
                     }
                 }
                 for e in change_entities {
@@ -129,7 +133,7 @@ pub struct SelectedInfoText;
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiButtonType {
     ChangeTileType(MapTileType),
-    BrushSizeType(usize),
+    BrushSizeType(isize),
     SaveMap,
 }
 pub struct UiButton(UiButtonType);
@@ -275,8 +279,10 @@ pub fn setup_ui_assets(
     commands.insert_resource(UiMaterials {
         background_info: materials.add(Color::rgb(0.7, 0.7, 0.4).into()),
         default_button: materials.add(Color::rgb(0.8, 0.8, 0.8).into()),
-        land_button: materials.add(Color::rgb(0.2, 0.8, 0.2).into()),
-        water_button: materials.add(Color::rgb(0.1, 0.2, 0.8).into()),
+        plains_button: materials.add(MapTileType::Plains.color().into()),
+        water_button: materials.add(MapTileType::Water.color().into()),
+        desert_button: materials.add(MapTileType::Desert.color().into()),
+        mountain_button: materials.add(MapTileType::Mountain.color().into()),
     });
 }
 
@@ -302,22 +308,34 @@ pub fn ui_info_box(
                     .with_children(|parent| {
                         parent.spawn_bundle(builder.text_info("Water"));
                     });
-                parent.spawn_bundle(builder.button_material(UiMaterialType::LandButton))
-                    .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Land)))
+                parent.spawn_bundle(builder.button_material(UiMaterialType::PlainsButton))
+                    .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Plains)))
                     .with_children(|parent| {
-                        parent.spawn_bundle(builder.text_info("Land"));
+                        parent.spawn_bundle(builder.text_info("Plains"));
+                    });
+                parent.spawn_bundle(builder.button_material(UiMaterialType::MountainButton))
+                    .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Mountain)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("Mountain"));
+                    });
+                parent.spawn_bundle(builder.button_material(UiMaterialType::DesertButton))
+                    .insert(UiButton(UiButtonType::ChangeTileType(MapTileType::Desert)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("Desert"));
                     });
             });
+            parent.spawn_bundle(builder.text_info(""))
+                .insert(InfoTag::BrushSize);
             parent.spawn_bundle(builder.info_row()).with_children(|parent| {
+                parent.spawn_bundle(builder.button())
+                    .insert(UiButton(UiButtonType::BrushSizeType(-1)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info("-1"));
+                    });
                 parent.spawn_bundle(builder.button())
                     .insert(UiButton(UiButtonType::BrushSizeType(1)))
                     .with_children(|parent| {
-                        parent.spawn_bundle(builder.text_info("Brush 1"));
-                    });
-                parent.spawn_bundle(builder.button())
-                    .insert(UiButton(UiButtonType::BrushSizeType(3)))
-                    .with_children(|parent| {
-                        parent.spawn_bundle(builder.text_info("Brush 3"));
+                        parent.spawn_bundle(builder.text_info("+1"));
                     });
             });
             parent.spawn_bundle(builder.button())
@@ -364,6 +382,7 @@ fn info_box_system(
 pub fn info_tag_system(
     mut info_tag_query: Query<(&InfoTag, &mut Text)>,
     selected_query: Query<(&MapCoordinate, &MapTile, &Selected)>,
+    map_editor_query: Query<&MapEditor>,
     province_infos: Res<ProvinceInfos>,
     date: Res<Date>,
 ) {
@@ -373,7 +392,7 @@ pub fn info_tag_system(
             InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             InfoTag::SelectedProvinceName => {
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
-                    format!("{:?}, {:?}, {:?}", coord, coord.pixel_pos(), map_tile.tile_type)
+                    format!("{:?}\n{:?}", coord, map_tile.tile_type)
                 } else {
                     "Select a province".to_string()
                 }
@@ -386,6 +405,7 @@ pub fn info_tag_system(
                     "".to_string()
                 }
             },
+            InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
             InfoTag::DateDisplay => format!("year {}, {}/{}", date.year, date.month, date.day),
             t => format!("{:?}", t),
         };
@@ -400,6 +420,7 @@ pub enum InfoTag {
     DateDisplay,
     SelectedProvinceName,
     SelectedProvincePopulation,
+    BrushSize,
 }
 // descriptor to set ui and create changeable text objects
 pub enum UiComponent {

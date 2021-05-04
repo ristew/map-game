@@ -31,7 +31,6 @@ impl MapCoordinate {
     pub fn from_pixel_pos(pos: Vec2) -> Self {
         let coord_x = (pos.x - 10.0) / (TILE_SIZE_X - 10.0);
         let coord_y = pos.y / TILE_SIZE_Y - 0.5 * coord_x - 1.0;
-        println!("{}, {}, {}", coord_x, coord_y, -coord_x - coord_y);
         Self::from_cube_round(Vec2::new(coord_x, coord_y))
     }
 
@@ -45,8 +44,6 @@ impl MapCoordinate {
         let xdiff = (rx - x).abs();
         let ydiff = (ry - y).abs();
         let zdiff = (rz - z).abs();
-        println!("{}, {}, {}", rx, ry, rz);
-        println!("{}, {}, {}", xdiff, ydiff, zdiff);
         if xdiff > ydiff + zdiff {
             rx = -ry - rz;
         } else if ydiff > zdiff {
@@ -59,6 +56,8 @@ impl MapCoordinate {
             y: ry as isize,
         }
     }
+
+
 
     pub fn from_window_pos(pos: Vec2, ) -> Self {
         Self::from_pixel_pos(pos)
@@ -88,6 +87,22 @@ impl MapCoordinate {
             neighbors: self.neighbors(),
         }
     }
+    pub fn neighbors_in_radius(&self, radius: isize) -> Vec<MapCoordinate> {
+        let mut items = Vec::new();
+        for x in -radius..(radius + 1) {
+            let min = (-radius).max(-x - radius);
+            let max = radius.min(-x + radius);
+            for y in min..(max + 1) {
+                items.push(MapCoordinate { x: self.x + x, y: self.y + y });
+            }
+        }
+        items
+    }
+    pub fn neighbors_in_radius_iter(&self, radius: isize) -> MapCoordinateIter {
+        MapCoordinateIter {
+            neighbors: self.neighbors_in_radius(radius),
+        }
+    }
     fn point3(&self) -> Point3 {
         Point3::new(self.x as i32, self.y as i32, 0)
     }
@@ -107,8 +122,10 @@ impl Iterator for MapCoordinateIter {
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MapTileType {
-    Land,
+    Plains,
     Water,
+    Desert,
+    Mountain,
     None,
 }
 
@@ -120,15 +137,17 @@ pub struct MapTile {
 impl MapTileType {
     pub fn color(self) -> Color {
         match self {
-            Self::Land => Color::rgb(0.2, 0.7, 0.1),
+            Self::Plains => Color::rgb(0.2, 0.7, 0.1),
             Self::Water => Color::rgb(0.0, 0.2, 0.7),
+            Self::Desert => Color::rgb(0.7, 0.7, 0.5),
+            Self::Mountain => Color::rgb(0.2, 0.2, 0.2),
             _ => Color::rgb(0.0, 0.0, 0.0),
         }
     }
 
     pub fn sprite(&self) -> usize {
         match self {
-            MapTileType::Land => 3,
+            MapTileType::Plains => 3,
             MapTileType::Water => 5,
             _ => 0,
         }
@@ -136,14 +155,14 @@ impl MapTileType {
 
     pub fn base_fertility(&self) -> f64 {
         match self {
-            MapTileType::Land => 10.0,
+            MapTileType::Plains => 10.0,
             _ => 0.0,
         }
     }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BasicLand {
+pub struct BasicPlains {
     pub arable_factor: f32,
     pub fertility: f32,
 }
@@ -155,6 +174,18 @@ impl HexMap {
     pub fn neighbors_iter(&self, coord: MapCoordinate) -> HexMapIterator {
         let mut items = Vec::new();
         for neighbor in coord.neighbors_iter() {
+            if let Some(item) = self.0.get(&neighbor) {
+                items.push(item.clone());
+            }
+        }
+        HexMapIterator {
+            tiles: items,
+        }
+    }
+
+    pub fn neighbors_in_radius_iter(&self, coord: MapCoordinate, radius: isize) -> HexMapIterator {
+        let mut items = Vec::new();
+        for neighbor in coord.neighbors_in_radius_iter(radius) {
             if let Some(item) = self.0.get(&neighbor) {
                 items.push(item.clone());
             }
@@ -194,7 +225,7 @@ pub fn create_map_tile(
     ent.insert(MapCoordinate { x, y })
        .insert(MapTile{ tile_type })
         ;
-    if tile_type == MapTileType::Land {
+    if tile_type == MapTileType::Plains {
         ent
             .insert(MapCoordinate { x, y })
             .insert(FarmerPopulation { alive: 100 })
@@ -210,8 +241,8 @@ pub fn create_map() {
     let save_file_name = "map.ron";
     let mut file = File::create(save_file_name).unwrap();
     let mut map_esds = Vec::new();
-    for i in 0..100 {
-        for j in 0..100 {
+    for i in 0..200 {
+        for j in 0..150 {
             let coord = MapCoordinate { x: i, y: j - (i / 2) };
             map_esds.push(MapEntitySaveData {
                 map_coordinate: Some(coord),
@@ -263,10 +294,11 @@ fn load_tile_map_system(
                 tile_sprite_indices.0.insert(MapTileType::$tt, texture_atlas.get_texture_index(&texture).unwrap());
             }
         }
-        load_tile_sprite_index!(Land);
+        load_tile_sprite_index!(Plains);
+        load_tile_sprite_index!(Desert);
+        load_tile_sprite_index!(Mountain);
         load_tile_sprite_index!(Water);
         let atlas_handle = texture_atlases.add(texture_atlas);
-        println!("load tile map");
         let tilemap = Tilemap::builder()
             .auto_chunk()
             .auto_spawn(2, 2)
@@ -304,14 +336,11 @@ fn build_world(
         return;
     }
     if let Some(mut map) = query.iter_mut().next() {
-        println!("build world");
         let save_file_name = load_map.0.as_ref().unwrap();
-        println!("save file: {}", save_file_name);
         let mut file = File::open(save_file_name).unwrap();
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
         let entities: Vec<MapEntitySaveData> = serde_json::from_str(&contents).unwrap();
-        println!("process map");
         // let mut tiles = Vec::new();
         for esd in &entities {
             let mut ecmds = commands.spawn();
@@ -369,14 +398,11 @@ fn map_tile_type_changed_system(
     mut tile_map_query: Query<&mut Tilemap>,
 ) {
     if load_map.0 != None {
-        println!("wait for load map?");
         return;
     }
     for (map_tile, coord) in query.iter() {
         for mut tile_map in tile_map_query.iter_mut() {
-            println!("map tile type changed {:?}", coord);
             if let Some(mut tile) = tile_map.get_tile_mut(coord.point3(), 0) {
-                println!("got tile");
                 let new_sprite = *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap();
                 tile.index = new_sprite;
             }

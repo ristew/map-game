@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
-use crate::{map::{MapCoordinate, MapTile, MapTileType}, province::ProvinceInfos};
+use crate::{map::{LoadMap, MapCoordinate, MapTile, MapTileType}, province::{ProvinceInfo, ProvinceInfos}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
@@ -166,13 +166,22 @@ fn pop_growth_system(
     }
 }
 
-fn setup_pops(
+pub struct SpawnedPops(bool);
+
+pub fn spawn_pops(
     mut commands: Commands,
     tiles_query: Query<(&MapCoordinate, &MapTile)>,
+    load_map: Res<LoadMap>,
+    mut spawned_pops: ResMut<SpawnedPops>,
+    pinfos: ResMut<ProvinceInfos>,
 ) {
+    if load_map.0 != None || spawned_pops.0 {
+        return;
+    }
     println!("pop setup");
     for (coord, tile) in tiles_query.iter() {
-        if tile.tile_type == MapTileType::Land {
+        if tile.tile_type == MapTileType::Plains {
+            println!("spawn pop for {:?}", coord);
             commands
                 .spawn()
                 .insert(BasePop {
@@ -192,8 +201,13 @@ fn setup_pops(
                     resource_base_harvest: 250.0,
                 })
                 .insert(coord.clone());
+            pinfos.0.insert(*coord, ProvinceInfo {
+                total_population: 100,
+                fertility: 1.0,
+            });
         }
     }
+    spawned_pops.0 = true;
 }
 
 pub struct PopPlugin;
@@ -202,9 +216,10 @@ impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
-            .add_startup_system_to_stage(InitStage::LoadPops, setup_pops.system())
             .add_system(farmer_production_system.system())
             .add_system(pop_growth_system.system())
+            .add_system(spawn_pops.system())
+            .insert_resource(SpawnedPops(false))
             ;
 
     }
