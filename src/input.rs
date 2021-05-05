@@ -188,7 +188,7 @@ pub fn change_speed_system(
     if keyboard_input.just_pressed(KeyCode::Space) {
         game_paused.0 = !game_paused.0;
     }
-    let duration = Duration::from_millis(2u64.pow(11 - game_speed.0 as u32));
+    let mut duration = Duration::from_millis(2u64.pow(11 - game_speed.0 as u32));
     date_timer.0.set_duration(duration);
 }
 

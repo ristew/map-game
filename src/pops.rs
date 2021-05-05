@@ -66,9 +66,8 @@ impl GoodsStorage {
     }
 
     pub fn use_goods_deficit(&mut self, good: EconomicGood, amount: f64) -> Option<f64> {
-        if let Some(mut current_res) = self.0.get_mut(&good) {
+        if let Some(current_res) = self.0.get_mut(&good) {
             *current_res -= amount;
-            println!("{}", *current_res);
             if *current_res < 0.0 {
                 let amt = -*current_res;
                 *current_res = 0.0;
@@ -143,6 +142,7 @@ pub struct FarmingPop {
 
 pub struct BasePop {
     pub size: isize,
+    pub growth: f64,
     pub culture: CultureRef,
     pub religion: ReligionRef,
     pub class: Class,
@@ -193,7 +193,9 @@ fn pop_growth_system(
             if let Some(deficit) = pop.resources.use_goods_deficit(EconomicGood::Grain, required_food) {
                 pop.hunger += deficit / pop.size as f64;
             }
-            let newpops = dev_mean_sample(pop.size as f64 / 200.0, pop.size as f64 * (1.0 - pop.hunger / 10.0) / 200.0).round() as isize;
+            let pop_growth = pop.size as f64 * (1.0 - pop.hunger / 10.0) / 600.0;
+            pop.growth = pop_growth;
+            let newpops = dev_mean_sample((pop.size as f64 / 1000.0).max(0.5), pop_growth).round() as isize;
             pop.size += newpops;
             pinfo.total_population += newpops;
         }
@@ -226,6 +228,7 @@ pub fn spawn_pops(
                     factors: Vec::new(),
                     resources: GoodsStorage(HashMap::new()),
                     hunger: 0.0,
+                    growth: 0.0,
                 })
                 .insert(FarmingPop {
                     resource: EconomicGood::Grain,
