@@ -58,9 +58,28 @@ pub struct GoodsStorage(pub HashMap<EconomicGood, f64>);
 
 impl GoodsStorage {
     pub fn add_resources(&mut self, good: EconomicGood, amount: f64) {
-        let base_amt: f64 = 0.0;
-        let current_res = self.0.get(&good).unwrap_or(&base_amt);
-        self.0.insert(good, current_res + amount);
+        if let Some(mut current_res) = self.0.get_mut(&good) {
+            *current_res += amount;
+        } else {
+            self.0.insert(good, amount);
+        }
+    }
+
+    pub fn use_goods_deficit(&mut self, good: EconomicGood, amount: f64) -> Option<f64> {
+        if let Some(mut current_res) = self.0.get_mut(&good) {
+            *current_res -= amount;
+            println!("{}", *current_res);
+            if *current_res < 0.0 {
+                let amt = -*current_res;
+                *current_res = 0.0;
+                Some(amt)
+            } else {
+                None
+            }
+        } else {
+            self.0.insert(good, amount);
+            Some(amount)
+        }
     }
 }
 
@@ -123,45 +142,60 @@ pub struct FarmingPop {
 }
 
 pub struct BasePop {
-    pub size: usize,
+    pub size: isize,
     pub culture: CultureRef,
     pub religion: ReligionRef,
     pub class: Class,
     pub factors: Vec<String>,
     pub resources: GoodsStorage,
+    pub hunger: f64,
 }
 
 pub fn farmer_production_system(
     mut farmer_query: Query<(&mut BasePop, &FarmingPop, &MapCoordinate)>,
     pinfos: Res<ProvinceInfos>,
-    current_date: Res<Date>,
-    mut time_event_reader: EventReader<TimeEvent>,
+    date: Res<Date>,
 ) {
-    for event in time_event_reader.iter() {
-        if *event == TimeEvent::Day {
-            for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
-                if current_date.days_after_doy(farming_pop.harvest_date) == 0 {
-                    println!("harvest");
-                    let total_harvest = 250.0 * pinfos.0.get(&coord).unwrap().fertility * base_pop.size as f64;
-                    base_pop.resources.add_resources(farming_pop.resource, total_harvest);
+    if date.is_day {
+        for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
+            if date.days_after_doy(farming_pop.harvest_date) == 0 {
+                println!("harvest");
+                let total_harvest = 250.0 * pinfos.0.get(&coord).unwrap().fertility * base_pop.size as f64;
+                base_pop.resources.add_resources(farming_pop.resource, total_harvest);
 
-                }
             }
         }
     }
 }
 
+// fn pop_growth_system(
+//     mut pop_query: Query<(&mut BasePop, &MapCoordinate)>,
+//     pinfos: Res<ProvinceInfos>,
+//     date: Res<Date>,
+// ) {
+//     if date.is_month {
+//         for (mut pop, coord) in pop_query.iter_mut() {
+//             pop.size += 5;
+//             pinfos.0.get_mut(&coord).unwrap().total_population += 5;
+//         }
+//     }
+// }
+
 fn pop_growth_system(
     mut pop_query: Query<(&mut BasePop, &MapCoordinate)>,
     pinfos: Res<ProvinceInfos>,
-    mut time_event_reader: EventReader<TimeEvent>,
+    date: Res<Date>,
 ) {
-    for event in time_event_reader.iter() {
-        if *event == TimeEvent::Month {
-            for (mut pop, coord) in pop_query.iter_mut() {
-                pop.size += 5;
-                pinfos.0.get_mut(&coord).unwrap().total_population += 5;
+    if date.is_month {
+        for (mut pop, coord) in pop_query.iter_mut() {
+            let required_food = 16.0 * pop.size as f64;
+            let mut pinfo = pinfos.0.get_mut(&coord).unwrap();
+            if let Some(deficit) = pop.resources.use_goods_deficit(EconomicGood::Grain, required_food) {
+                pop.hunger += deficit / pop.size as f64;
             }
+            let newpops = dev_mean_sample(pop.size as f64 / 200.0, pop.size as f64 * (1.0 - pop.hunger / 10.0) / 200.0).round() as isize;
+            pop.size += newpops;
+            pinfo.total_population += newpops;
         }
     }
 }
@@ -191,6 +225,7 @@ pub fn spawn_pops(
                     class: Class::Farmer,
                     factors: Vec::new(),
                     resources: GoodsStorage(HashMap::new()),
+                    hunger: 0.0,
                 })
                 .insert(FarmingPop {
                     resource: EconomicGood::Grain,
@@ -206,8 +241,8 @@ pub fn spawn_pops(
                 fertility: 1.0,
             });
         }
+        spawned_pops.0 = true;
     }
-    spawned_pops.0 = true;
 }
 
 pub struct PopPlugin;

@@ -5,7 +5,7 @@ use crate::{map::*, pops::BasePop, stage::*};
 pub struct ProvinceInfos(pub DashMap<MapCoordinate, ProvinceInfo>);
 
 pub struct ProvinceInfo {
-    pub total_population: usize,
+    pub total_population: isize,
     pub fertility: f64,
 }
 

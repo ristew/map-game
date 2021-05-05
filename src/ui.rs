@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
 };
-use crate::province::ProvinceInfos;
+use crate::{province::ProvinceInfos, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 
 use super::tag::*;
@@ -385,6 +385,8 @@ pub fn info_tag_system(
     map_editor_query: Query<&MapEditor>,
     province_infos: Res<ProvinceInfos>,
     date: Res<Date>,
+    game_speed: Res<GameSpeed>,
+    game_paused: Res<GamePaused>,
 ) {
     for (info_tag, mut text) in info_tag_query.iter_mut() {
         let info_string = match *info_tag {
@@ -406,7 +408,7 @@ pub fn info_tag_system(
                 }
             },
             InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
-            InfoTag::DateDisplay => format!("year {}, {}/{}", date.year, date.month, date.day),
+            InfoTag::DateDisplay => format!("({}{}) year {}, {}/{}", game_speed.0, game_paused.0.then(|| "paused").unwrap_or(""), date.year, date.month, date.day),
             t => format!("{:?}", t),
         };
         text.sections[0].value = info_string;

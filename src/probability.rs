@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use rand_distr::StandardNormal;
 
 pub trait EventSpawner {
     type Event;
@@ -18,4 +19,8 @@ impl <T> RandomEventGenerator<T> where T: EventSpawner {
             None
         }
     }
+}
+
+pub fn dev_mean_sample(stddev: f64, mean: f64) -> f64 {
+    thread_rng().sample(StandardNormal)
 }

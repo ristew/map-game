@@ -5,32 +5,41 @@ use crate::tag::DateDisplay;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeEvent {
     Day,
+    Week,
     Month,
     Year,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Date {
     pub day: usize,
     pub month: usize,
     pub year: usize,
+    pub abs_day: usize,
+    pub is_day: bool,
+    pub is_week: bool,
+    pub is_month: bool,
+    pub is_year: bool,
 }
 
 impl Date {
-    pub fn next_day(&mut self) -> Vec<TimeEvent> {
-        let mut res = vec![TimeEvent::Day];
+    pub fn next_day(&mut self) {
+        self.is_day = true;
         self.day += 1;
+        self.abs_day += 1;
+        if self.abs_day % 7 == 0 {
+            self.is_week = true;
+        }
         if self.day > 30 {
             self.month += 1;
             self.day = 1;
-            res.push(TimeEvent::Month);
+            self.is_month = true;
             if self.month > 12 {
                 self.month = 1;
                 self.year += 1;
-                res.push(TimeEvent::Year);
+                self.is_year = true;
             }
         }
-        res
     }
 
     pub fn days_after_doy(&self, day_of_year: DayOfYear) -> usize {
@@ -54,18 +63,24 @@ pub struct DayOfYear {
     pub month: usize,
 }
 
-struct DateTimer(Timer);
+pub struct DateTimer(pub Timer);
+pub struct GameSpeed(pub usize);
+pub struct GamePaused(pub bool);
 
 fn time_system(
     mut date: ResMut<Date>,
     mut date_timer: ResMut<DateTimer>,
     time: Res<Time>,
-    mut date_events: EventWriter<TimeEvent>,
     mut date_texts: Query<(&DateDisplay, &mut Text)>,
+    game_paused: Res<GamePaused>,
 ) {
-    if date_timer.0.tick(time.delta()).just_finished() {
-        let evts = date.next_day();
-        date_events.send_batch(evts.into_iter());
+    date.is_day = false;
+    date.is_week = false;
+    date.is_month = false;
+    date.is_year = false;
+    if !game_paused.0 && date_timer.0.tick(time.delta()).just_finished() {
+        date.next_day();
+
         for (_, mut text) in date_texts.iter_mut() {
             text.sections[0].value = format!("year {}, {}/{}", date.year, date.month, date.day);
         }
@@ -78,11 +93,15 @@ impl Plugin for TimePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .insert_resource(Date {
+                abs_day: 1,
                 day: 1,
                 month: 1,
                 year: 1,
+                ..Default::default()
             })
-            .insert_resource(DateTimer(Timer::from_seconds(0.5, true)))
+            .insert_resource(DateTimer(Timer::from_seconds(0.02, true)))
+            .insert_resource(GameSpeed(5))
+            .insert_resource(GamePaused(false))
             .add_event::<TimeEvent>()
             .add_system(time_system.system());
     }

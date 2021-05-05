@@ -1,8 +1,11 @@
+use std::time::Duration;
+
 use bevy::{input::{
         ElementState,
         mouse::MouseButtonInput,
     }, prelude::*, render::{camera::{ActiveCameras, Camera, OrthographicProjection}, draw::OutsideFrustum}};
-use crate::*;
+use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, TileTextureAtlas}, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{GamePaused, GameSpeed}, ui::InfoBoxMode};
+use crate::time::DateTimer;
 
 
 pub fn tile_hold_pressed_system(
@@ -167,5 +170,37 @@ pub fn info_box_change_system(
     }
     if keyboard_input.pressed(KeyCode::N) {
         *info_box_mode = InfoBoxMode::ProvinceInfoMode;
+    }
+}
+
+pub fn change_speed_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut date_timer: ResMut<DateTimer>,
+    mut game_speed: ResMut<GameSpeed>,
+    mut game_paused: ResMut<GamePaused>,
+) {
+    if keyboard_input.just_pressed(KeyCode::LBracket) {
+        game_speed.0 = game_speed.0.max(1) - 1;
+    }
+    if keyboard_input.just_pressed(KeyCode::RBracket) {
+        game_speed.0 = game_speed.0.min(10) + 1;
+    }
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        game_paused.0 = !game_paused.0;
+    }
+    let duration = Duration::from_millis(2u64.pow(11 - game_speed.0 as u32));
+    date_timer.0.set_duration(duration);
+}
+
+pub struct InputPlugin;
+
+impl Plugin for InputPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app
+            .add_system(change_speed_system.system())
+            .add_system(camera_movement_system.system())
+            .add_system(tile_select_system.system())
+            .add_system(tile_hold_pressed_system.system())
+            .add_system(info_box_change_system.system());
     }
 }
