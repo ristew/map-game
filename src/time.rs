@@ -100,7 +100,7 @@ impl Plugin for TimePlugin {
                 ..Default::default()
             })
             .insert_resource(DateTimer(Timer::from_seconds(0.02, true)))
-            .insert_resource(GameSpeed(4))
+            .insert_resource(GameSpeed(5))
             .insert_resource(GamePaused(false))
             .add_event::<TimeEvent>()
             .add_system(time_system.system());

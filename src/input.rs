@@ -4,7 +4,6 @@ use bevy::{input::{
         ElementState,
         mouse::MouseButtonInput,
     }, prelude::*, render::{camera::{ActiveCameras, Camera, OrthographicProjection}, draw::OutsideFrustum}};
-use bevy_egui::EguiContext;
 use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, TileTextureAtlas}, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{GamePaused, GameSpeed}, ui::InfoBoxMode};
 use crate::time::DateTimer;
 
@@ -17,15 +16,11 @@ pub fn tile_hold_pressed_system(
     hold_pressed_query: Query<(Entity, &HoldPressed, &MapCoordinate)>,
     ui_container_query: Query<(&UiContainer, &Node, &Transform)>,
     world_map: Res<HexMap>,
-    egui_ctx: Res<EguiContext>,
 ) {
     let window = windows.get_primary().unwrap();
     if mouse_button_input.pressed(MouseButton::Left) {
         if let Some(cur_pos) = window.cursor_position() {
             // UI mouse occlusion
-            if egui_ctx.ctx().is_pointer_over_area() {
-                return;
-            }
             for (_, node, transform) in ui_container_query.iter() {
                 let nx = transform.translation.x;
                 let ny = transform.translation.y;
@@ -70,27 +65,23 @@ pub fn tile_select_system(
     ui_container_query: Query<(&UiContainer, &Node, &Transform)>,
     world_map: Res<HexMap>,
     texture_atlas_handle: Res<TileTextureAtlas>,
-    egui_ctx: Res<EguiContext>,
 ) {
     let window = windows.get_primary().unwrap();
     for event in mouse_button_input_events.iter() {
         if event.button == MouseButton::Left && event.state == ElementState::Pressed {
             if let Some(cur_pos) = window.cursor_position() {
                 // UI mouse occlusion
-                if egui_ctx.ctx().is_pointer_over_area() {
-                    return;
-                }
-                // for (_, node, transform) in ui_container_query.iter() {
-                //     let nx = transform.translation.x;
-                //     let ny = transform.translation.y;
+                for (_, node, transform) in ui_container_query.iter() {
+                    let nx = transform.translation.x;
+                    let ny = transform.translation.y;
 
-                //     if cur_pos.x >= nx - node.size.x / 2.0 &&
-                //         cur_pos.y >= ny - node.size.y / 2.0 &&
-                //         cur_pos.x <= nx + node.size.x / 2.0 &&
-                //         cur_pos.y <= ny + node.size.y / 2.0 {
-                //             return;
-                //         }
-                // }
+                    if cur_pos.x >= nx - node.size.x / 2.0 &&
+                        cur_pos.y >= ny - node.size.y / 2.0 &&
+                        cur_pos.x <= nx + node.size.x / 2.0 &&
+                        cur_pos.y <= ny + node.size.y / 2.0 {
+                            return;
+                        }
+                }
                 for (_, camera_transform, ortho_proj, _) in camera_query.iter() {
                     let world_pos = Vec2::new(
                         (cur_pos.x + ortho_proj.left) * camera_transform.scale.x + camera_transform.translation.x,
@@ -192,12 +183,12 @@ pub fn change_speed_system(
         game_speed.0 = game_speed.0.max(1) - 1;
     }
     if keyboard_input.just_pressed(KeyCode::RBracket) {
-        game_speed.0 = game_speed.0.min(6) + 1;
+        game_speed.0 = game_speed.0.min(10) + 1;
     }
     if keyboard_input.just_pressed(KeyCode::Space) {
         game_paused.0 = !game_paused.0;
     }
-    let duration = Duration::from_millis(2u64.pow(11 - game_speed.0 as u32));
+    let mut duration = Duration::from_millis(2u64.pow(11 - game_speed.0 as u32));
     date_timer.0.set_duration(duration);
 }
 

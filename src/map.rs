@@ -4,8 +4,6 @@ use std::{collections::{HashMap, HashSet}, convert::TryInto, fs::File, io::{Read
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 use crate::{province::ProvinceInfo, stage::FinishStage};
 use crate::stage::InitStage;
 
@@ -122,7 +120,7 @@ impl Iterator for MapCoordinateIter {
     }
 }
 
-#[derive(Copy, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MapTileType {
     Plains,
     Water,

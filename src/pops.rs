@@ -192,8 +192,6 @@ fn pop_growth_system(
             let mut pinfo = pinfos.0.get_mut(&coord).unwrap();
             if let Some(deficit) = pop.resources.use_goods_deficit(EconomicGood::Grain, required_food) {
                 pop.hunger += deficit / pop.size as f64;
-            } else {
-                pop.hunger = 0.0;
             }
             let pop_growth = pop.size as f64 * (1.0 - pop.hunger / 10.0) / 600.0;
             pop.growth = pop_growth;
@@ -223,7 +221,7 @@ pub fn spawn_pops(
             commands
                 .spawn()
                 .insert(BasePop {
-                    size: 1000,
+                    size: 100,
                     culture: CultureRef("Default".to_string()),
                     religion: ReligionRef("Default".to_string()),
                     class: Class::Farmer,
@@ -242,13 +240,8 @@ pub fn spawn_pops(
                 })
                 .insert(coord.clone());
             pinfos.0.insert(*coord, ProvinceInfo {
-                total_population: 1000,
+                total_population: 100,
                 fertility: 1.0,
-            });
-        } else {
-            pinfos.0.insert(*coord, ProvinceInfo {
-                total_population: 0,
-                fertility: 0.0,
             });
         }
         spawned_pops.0 = true;

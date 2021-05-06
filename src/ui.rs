@@ -1,7 +1,7 @@
-use bevy::{diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin}, prelude::*};
-use bevy_egui::{EguiContext, EguiPlugin, EguiSettings, egui};
-use strum::IntoEnumIterator;
-use crate::{pops::BasePop, province::ProvinceInfos, time::{GamePaused, GameSpeed}};
+use bevy::{
+    prelude::*,
+};
+use crate::{province::ProvinceInfos, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 
 use super::tag::*;
@@ -489,100 +489,22 @@ fn issue_1135_system(
 
 pub fn setup_ui<'a>(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    ui_materials: Res<'a, UiMaterials>,
+    windows: Res<Windows>,
 ) {
-    // let default_font = asset_server.load("fonts/DejaVuSansMono.ttf");
+    let default_font = asset_server.load("fonts/DejaVuSansMono.ttf");
     commands.spawn_bundle((MapEditor::default(),));
-    // let builder = UiBuilder {
-    //     materials: ui_materials,
-    //     default_font: default_font,
-    // };
+    let builder = UiBuilder {
+        materials: ui_materials,
+        default_font: default_font,
+    };
 
-    // ui_info_box(&mut commands, &builder);
-    // province_info_box(&mut commands, &builder);
-    // let window = windows.get_primary().unwrap();
-    // ui_info_bar(&mut commands, &builder, window.height());
+    ui_info_box(&mut commands, &builder);
+    province_info_box(&mut commands, &builder);
+    let window = windows.get_primary().unwrap();
+    ui_info_bar(&mut commands, &builder, window.height());
     println!("done with ui setup");
-}
-
-#[derive(Default)]
-pub struct UiState {
-    paint_tiles: bool,
-}
-
-fn update_ui_scale_factor(mut egui_settings: ResMut<EguiSettings>, windows: Res<Windows>) {
-    if let Some(window) = windows.get_primary() {
-        egui_settings.scale_factor = 1.0 / window.scale_factor();
-    }
-}
-
-fn ui_system(
-    mut egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<UiState>,
-    selected_query: Query<(&MapCoordinate, &MapTile, &Selected)>,
-    pop_query: Query<&BasePop>,
-    province_infos: Res<ProvinceInfos>,
-    date: Res<Date>,
-    game_speed: Res<GameSpeed>,
-    game_paused: Res<GamePaused>,
-    info_box_mode: Res<InfoBoxMode>,
-    time: Res<Time>,
-    diagnostics: Res<Diagnostics>,
-    mut map_editor_query: Query<&mut MapEditor>,
-) {
-    egui::SidePanel::left("side_panel", 200.0).show(egui_ctx.ctx(), |ui| {
-        ui.label("==========================");
-        ui.label(format!("fps: {}", diagnostics.get(FrameTimeDiagnosticsPlugin::FPS).unwrap().average().unwrap_or(0.0)));
-        ui.label(format!("({}{}) year {}, {}/{}", game_speed.0, game_paused.0.then(|| "p").unwrap_or("r"), date.year, date.month, date.day));
-        let total_pops = pop_query.iter().fold(0, |cur, base_pop| base_pop.size + cur);
-        ui.label(format!("total pop: {}", total_pops));
-        if *info_box_mode == InfoBoxMode::ProvinceInfoMode {
-            if let Some((coord, map_tile, _)) = selected_query.iter().next() {
-                ui.label(format!("pop: {}", province_infos.0.get(&coord).unwrap().total_population));
-            } else {
-                ui.label("Select a province.");
-            }
-        } else if *info_box_mode == InfoBoxMode::MapDrawingMode {
-            for mut map_editor in map_editor_query.iter_mut() {
-                if ui.selectable_label(ui_state.paint_tiles, "Paint!").clicked() {
-                    ui_state.paint_tiles = !ui_state.paint_tiles;
-                    if !ui_state.paint_tiles {
-                        map_editor.change_tile_type = None;
-                    }
-                }
-                if ui_state.paint_tiles {
-                    ui.add(egui::Slider::new(&mut map_editor.brush_size, 0..=10).text("brush size"));
-                    for tile_type in MapTileType::iter() {
-                        if tile_type == MapTileType::None {
-                            continue;
-                        }
-                        ui.selectable_value(&mut map_editor.change_tile_type, Some(tile_type), format!("{:?}", tile_type));
-                    }
-                    if map_editor.change_tile_type == Some(MapTileType::None) {
-                        map_editor.change_tile_type = None;
-                        ui_state.paint_tiles = false;
-                    }
-                }
-            }
-        }
-        // InfoTag::ProvinceName(coord) => format!("{:?}", coord),
-        // InfoTag::SelectedProvinceName => {
-        //     if let Some((coord, map_tile, _)) = selected_query.iter().next() {
-        //         format!("{:?}\n{:?}", coord, map_tile.tile_type)
-        //     } else {
-        //         "Select a province".to_string()
-        //     }
-        // },
-        // InfoTag::SelectedProvincePopulation => {
-        //     if let Some((coord, map_tile, _)) = selected_query.iter().next() {
-        //         // monads and strife
-        //         format!("population: {:?}", province_infos.0.get(&coord).map(|pinfo| pinfo.total_population).unwrap_or(0))
-        //     } else {
-        //         "".to_string()
-        //     }
-        // },
-        // InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
-        // t => format!("{:?}", t),
-    });
 }
 
 pub struct UiPlugin;
@@ -591,18 +513,13 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut AppBuilder) {
         let ui_setup = SystemStage::single(setup_ui.system());
         app
-            // .add_startup_system(setup_ui_assets.system())
+            .add_startup_system(setup_ui_assets.system())
             .add_startup_stage("ui_setup", ui_setup)
             .insert_resource(InfoBoxMode::ProvinceInfoMode)
-            .insert_resource(UiState::default())
-            // .add_system(info_tag_system.system())
-            // .add_system(change_button_system.system())
-            // .add_system(info_box_system.system())
-            // .add_system(issue_1135_system.system())
-            // .add_system(info_bar_position_system.system());
-            .add_plugin(EguiPlugin)
-            .add_system(update_ui_scale_factor.system())
-            .add_system(map_editor_painting_system.system())
-            .add_system(ui_system.system());
+            .add_system(info_tag_system.system())
+            .add_system(change_button_system.system())
+            .add_system(info_box_system.system())
+            .add_system(issue_1135_system.system())
+            .add_system(info_bar_position_system.system());
     }
 }
