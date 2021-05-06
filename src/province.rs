@@ -27,9 +27,12 @@ fn province_setup(
 }
 
 fn province_pop_tracking_system(
-    pop_changed_query: Query<(&BasePop, &MapCoordinate), Changed<BasePop>>,
+    pop_changed_query: Query<(&BasePop, &MapCoordinate)>,
     province_infos: Res<ProvinceInfos>,
 ) {
+    for (pop, coord) in pop_changed_query.iter() {
+
+    }
 }
 
 pub enum ProvinceModifier {
