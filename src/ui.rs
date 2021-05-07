@@ -415,7 +415,7 @@ pub fn info_tag_system(
     }
 }
 
-#[derive(Debug, Clone, Copy,)]
+#[derive(Debug, Clone)]
 pub enum InfoTag {
     ProvincePopulation(MapCoordinate),
     ProvinceName(MapCoordinate),
@@ -423,6 +423,7 @@ pub enum InfoTag {
     SelectedProvinceName,
     SelectedProvincePopulation,
     BrushSize,
+    Text(String),
 }
 // descriptor to set ui and create changeable text objects
 pub enum UiComponent {

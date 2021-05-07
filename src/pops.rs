@@ -221,7 +221,7 @@ pub fn spawn_pops(
             commands
                 .spawn()
                 .insert(BasePop {
-                    size: 100,
+                    size: 1000,
                     culture: CultureRef("Default".to_string()),
                     religion: ReligionRef("Default".to_string()),
                     class: Class::Farmer,
@@ -240,7 +240,7 @@ pub fn spawn_pops(
                 })
                 .insert(coord.clone());
             pinfos.0.insert(*coord, ProvinceInfo {
-                total_population: 100,
+                total_population: 1000,
                 fertility: 1.0,
             });
         }
