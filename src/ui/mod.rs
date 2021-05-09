@@ -1,6 +1,7 @@
 use bevy::{
     prelude::*,
 };
+use std::sync::{Arc, RwLock};
 use crate::{province::ProvinceInfos, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 
@@ -389,17 +390,17 @@ pub fn info_tag_system(
     game_paused: Res<GamePaused>,
 ) {
     for (info_tag, mut text) in info_tag_query.iter_mut() {
-        let info_string = match *info_tag {
-            InfoTag::ProvincePopulation(coord) => format!("Total population: {}", province_infos.0.get(&coord).unwrap().total_population),
-            InfoTag::ProvinceName(coord) => format!("{:?}", coord),
-            InfoTag::SelectedProvinceName => {
+        let info_string = match info_tag {
+            &InfoTag::ProvincePopulation(coord) => format!("Total population: {}", province_infos.0.get(&coord).unwrap().total_population),
+            &InfoTag::ProvinceName(coord) => format!("{:?}", coord),
+            &InfoTag::SelectedProvinceName => {
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     format!("{:?}\n{:?}", coord, map_tile.tile_type)
                 } else {
                     "Select a province".to_string()
                 }
             },
-            InfoTag::SelectedProvincePopulation => {
+            &InfoTag::SelectedProvincePopulation => {
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     // monads and strife
                     format!("population: {:?}", province_infos.0.get(&coord).map(|pinfo| pinfo.total_population).unwrap_or(0))
@@ -407,8 +408,8 @@ pub fn info_tag_system(
                     "".to_string()
                 }
             },
-            InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
-            InfoTag::DateDisplay => format!("({}{}) year {}, {}/{}", game_speed.0, game_paused.0.then(|| "paused").unwrap_or(""), date.year, date.month, date.day),
+            &InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
+            &InfoTag::DateDisplay => format!("({}{}) year {}, {}/{}", game_speed.0, game_paused.0.then(|| "paused").unwrap_or(""), date.year, date.month, date.day),
             t => format!("{:?}", t),
         };
         text.sections[0].value = info_string;
@@ -427,23 +428,30 @@ pub enum InfoTag {
 }
 // descriptor to set ui and create changeable text objects
 pub enum UiComponent {
-    InfoText(InfoTag)
+    InfoText(InfoTag),
+    List(Vec<Box<UiComponent>>),
 }
 
 impl UiComponent {
     fn render(
         &self,
         builder: &UiBuilder,
-        mut commands: Commands,
+        commands: RwLock<Commands>,
     ) -> Entity {
-        let mut base = commands.spawn();
         match self {
             Self::InfoText(info_tag) => {
+                let mut base = commands.get_mut().unwrap().spawn();
                 base.insert_bundle(builder.text_info(""))
                     .insert(info_tag.clone());
+                base.id()
+            },
+            Self::List(list) => {
+                let children = list.iter().map(|comp| { comp.render(builder, commands.clone()) }).collect::<Vec<Entity>>().as_slice();
+                let mut base = commands.get_mut().unwrap().spawn();
+                base.insert_children(0, &children);
+                base.id()
             }
-        };
-        base.id()
+        }
     }
 }
 pub struct InfoBoxChangeCommand;
