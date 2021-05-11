@@ -47,6 +47,10 @@ tin
 * ui
 ergonomic api
 our problem is we show a lot of information
+leaving nodes hidden in the background still incurs compuation, and they have to change sometimes anyways (list)
+we could ape the vdom model, where we only tear down if any nodes added/removed
+still need to maintain data binding - even in lists
+table as basic element
 
 
 * architecture

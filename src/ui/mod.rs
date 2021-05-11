@@ -436,18 +436,18 @@ impl UiComponent {
     fn render(
         &self,
         builder: &UiBuilder,
-        commands: RwLock<Commands>,
+        commands: &mut Commands,
     ) -> Entity {
         match self {
             Self::InfoText(info_tag) => {
-                let mut base = commands.get_mut().unwrap().spawn();
+                let mut base = commands.spawn();
                 base.insert_bundle(builder.text_info(""))
                     .insert(info_tag.clone());
                 base.id()
             },
             Self::List(list) => {
-                let children = list.iter().map(|comp| { comp.render(builder, commands.clone()) }).collect::<Vec<Entity>>().as_slice();
-                let mut base = commands.get_mut().unwrap().spawn();
+                let children = list.iter().map(|comp| { comp.render(builder, commands) }).collect::<Vec<Entity>>();
+                let mut base = commands.spawn();
                 base.insert_children(0, &children);
                 base.id()
             }

@@ -159,6 +159,13 @@ impl MapTileType {
             _ => 0.0,
         }
     }
+
+    pub fn base_arable_land(&self) -> f64 {
+        match self {
+            MapTileType::Plains => 0.7,
+            _ => 0.0,
+        }
+    }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
-use crate::{map::{LoadMap, MapCoordinate, MapTile, MapTileType}, province::{ProvinceInfo, ProvinceInfos}};
+use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, province::{ProvinceInfo, ProvinceInfos}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
@@ -65,6 +65,12 @@ impl GoodsStorage {
         }
     }
 
+    pub fn set_resource_factor(&mut self, good: EconomicGood, factor: f64) {
+        if let Some(mut current_res) = self.0.get_mut(&good) {
+            *current_res *= factor;
+        }
+    }
+
     pub fn use_goods_deficit(&mut self, good: EconomicGood, amount: f64) -> Option<f64> {
         if let Some(current_res) = self.0.get_mut(&good) {
             *current_res -= amount;
@@ -76,7 +82,7 @@ impl GoodsStorage {
                 None
             }
         } else {
-            self.0.insert(good, amount);
+            self.0.insert(good, 0.0);
             Some(amount)
         }
     }
@@ -153,14 +159,30 @@ pub struct BasePop {
 
 pub fn farmer_production_system(
     mut farmer_query: Query<(&mut BasePop, &FarmingPop, &MapCoordinate)>,
+    tile_type_query: Query<&MapTile>,
     pinfos: Res<ProvinceInfos>,
     date: Res<Date>,
+    hex_map: Res<HexMap>,
 ) {
     if date.is_day {
         for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
             if date.days_after_doy(farming_pop.harvest_date) == 0 {
+                let pinfo = pinfos.0.get(&coord).unwrap();
+                let tile_entity = hex_map.0.get(&coord).unwrap();
+                let tile_type = tile_type_query.get(**tile_entity).unwrap().tile_type;
+
                 println!("harvest");
-                let total_harvest = 250.0 * pinfos.0.get(&coord).unwrap().fertility * base_pop.size as f64;
+                let carrying_capacity = tile_type.base_arable_land() * 100.0 * 15.0;
+                let productive_pops = if pinfo.total_population as f64 > carrying_capacity {
+                    let excess = pinfo.total_population as f64 - carrying_capacity;
+                    println!("harvest excess {}", excess);
+                    base_pop.size as f64 * (1.0 - excess / pinfo.total_population as f64).max(0.1)
+                } else {
+                    base_pop.size as f64
+                };
+                let total_harvest = dev_mean_sample(0.5, 1.0).clamp(0.5, 2.0) * 250.0 * pinfo.fertility * productive_pops;
+                // TODO: discriminate major landholding populations for capacity
+                base_pop.resources.set_resource_factor(farming_pop.resource, 0.1);
                 base_pop.resources.add_resources(farming_pop.resource, total_harvest);
 
             }
@@ -191,13 +213,34 @@ fn pop_growth_system(
             let required_food = 16.0 * pop.size as f64;
             let mut pinfo = pinfos.0.get_mut(&coord).unwrap();
             if let Some(deficit) = pop.resources.use_goods_deficit(EconomicGood::Grain, required_food) {
-                pop.hunger += deficit / pop.size as f64;
+                pop.hunger += deficit / required_food;
+                pop.hunger = pop.hunger.min(5.0);
+                println!("hunger! {}", pop.hunger);
+            } else {
+                pop.hunger = 0.0;
             }
-            let pop_growth = pop.size as f64 * (1.0 - pop.hunger / 10.0) / 600.0;
+            let pop_growth = pop.size as f64 * (1.0 - pop.hunger) / 600.0;
             pop.growth = pop_growth;
             let newpops = dev_mean_sample((pop.size as f64 / 1000.0).max(0.5), pop_growth).round() as isize;
+            if newpops < 0 {
+                println!("size {} growth {} newpops {}", pop.size, pop_growth, newpops);
+                println!("hunger")
+            }
             pop.size += newpops;
             pinfo.total_population += newpops;
+        }
+    }
+}
+
+fn pop_migration_system(
+    pop_query: Query<(&BasePop, &MapCoordinate)>,
+    pinfos: Res<ProvinceInfos>,
+    date: Res<Date>,
+) {
+    if date.is_day {
+        for (pop, coord) in pop_query.iter() {
+            if pop.hunger > 0.0 {
+            }
         }
     }
 }
