@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::Command, prelude::*};
 use std::collections::HashMap;
 use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, province::{ProvinceInfo, ProvinceInfos}};
 use crate::time::*;
@@ -8,6 +8,7 @@ use crate::stage::*;
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EconomicGood {
     Grain,
+    Wine,
 }
 
 pub trait Population {
@@ -133,8 +134,11 @@ pub struct Culture {
 
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CultureRef(String);
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReligionRef(String);
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Class {
     Farmer,
     Laborer,
@@ -144,6 +148,10 @@ pub struct FarmingPop {
     resource: EconomicGood,
     resource_base_harvest: f64,
     harvest_date: DayOfYear,
+}
+
+pub struct NoblePop {
+    resource: EconomicGood,
 }
 
 pub struct BasePop {
@@ -157,6 +165,12 @@ pub struct BasePop {
     pub hunger: f64,
 }
 
+impl BasePop {
+    fn same_group(&self, other: &BasePop) -> bool {
+        self.culture == other.culture && self.religion == other.religion && self.class == other.class
+    }
+}
+
 pub fn farmer_production_system(
     mut farmer_query: Query<(&mut BasePop, &FarmingPop, &MapCoordinate)>,
     tile_type_query: Query<&MapTile>,
@@ -168,7 +182,11 @@ pub fn farmer_production_system(
         for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
             if date.days_after_doy(farming_pop.harvest_date) == 0 {
                 let pinfo = pinfos.0.get(&coord).unwrap();
-                let tile_entity = hex_map.0.get(&coord).unwrap();
+                let tile_entity = if let Some(te) = hex_map.0.get(&coord) {
+                    te
+                } else {
+                    continue;
+                };
                 let tile_type = tile_type_query.get(**tile_entity).unwrap().tile_type;
 
                 println!("harvest");
@@ -223,8 +241,7 @@ fn pop_growth_system(
             pop.growth = pop_growth;
             let newpops = dev_mean_sample((pop.size as f64 / 1000.0).max(0.5), pop_growth).round() as isize;
             if newpops < 0 {
-                println!("size {} growth {} newpops {}", pop.size, pop_growth, newpops);
-                println!("hunger")
+                // println!("size {} growth {} newpops {}", pop.size, pop_growth, newpops);
             }
             pop.size += newpops;
             pinfo.total_population += newpops;
@@ -232,14 +249,148 @@ fn pop_growth_system(
     }
 }
 
+struct PopChange {
+    size: isize,
+    pop_entity: Entity,
+}
+
+impl Command for PopChange {
+    fn write(self: Box<Self>, world: &mut World) {
+        let mut base_pop = world.entity_mut(self.pop_entity).get_mut::<BasePop>().unwrap();
+        println!("popchange: {} {}", base_pop.size, self.size);
+        base_pop.size += self.size;
+    }
+}
+
+struct PopSpawn {
+    size: isize,
+    coord: MapCoordinate,
+    class: Class,
+    culture: CultureRef,
+    religion: ReligionRef,
+}
+
+impl Command for PopSpawn {
+    fn write(self: Box<Self>, world: &mut World) {
+        let pop_ent = {
+            let mut pop = world
+                .spawn();
+            pop
+                .insert(BasePop {
+                    size: self.size,
+                    culture: self.culture,
+                    religion: self.religion,
+                    class: self.class,
+                    factors: Vec::new(),
+                    resources: GoodsStorage(HashMap::new()),
+                    hunger: 0.0,
+                    growth: 0.0,
+                })
+                .insert(self.coord.clone());
+            if self.class == Class::Farmer {
+                pop
+                    .insert(FarmingPop {
+                        resource: EconomicGood::Grain,
+                        harvest_date: DayOfYear {
+                            day: 15,
+                            month: 1,
+                        },
+                        resource_base_harvest: 250.0,
+                    });
+            }
+            pop.id()
+        };
+
+        world.get_resource_mut::<ProvinceInfos>().unwrap().0.get_mut(&self.coord).unwrap().pops.push(pop_ent);
+    }
+}
+
+
+struct MigrationEvent {
+    source_pop_entity: Entity,
+    target_coord: MapCoordinate,
+    size: isize,
+}
+
+fn migration_event_system(
+    mut commands: Commands,
+    mut pinfos: ResMut<ProvinceInfos>,
+    base_pop_query: Query<&BasePop>,
+    mut migration_events: EventReader<MigrationEvent>,
+) {
+    for evt in migration_events.iter() {
+        println!("migration event {:?}", evt.target_coord);
+        commands.add(PopChange {
+            size: -evt.size,
+            pop_entity: evt.source_pop_entity,
+        });
+        let source_pop = base_pop_query.get(evt.source_pop_entity).unwrap();
+        let mut found_pop = false;
+        for target_pop_ent in pinfos.0.get(&evt.target_coord).unwrap().pops.iter() {
+            println!("check target?");
+            let target_pop = base_pop_query.get(*target_pop_ent).unwrap();
+            if source_pop.same_group(&target_pop) {
+                println!("found same pop");
+                commands.add(PopChange {
+                    size: evt.size,
+                    pop_entity: *target_pop_ent,
+                });
+                found_pop = true;
+                break;
+            } else {
+                println!("not same pop?");
+            }
+        }
+        if !found_pop {
+            // have to add a new pop
+            commands.add(PopSpawn {
+                size: evt.size,
+                coord: evt.target_coord,
+                class: source_pop.class,
+                culture: source_pop.culture.clone(),
+                religion: source_pop.religion.clone(),
+            });
+        }
+    }
+}
+
 fn pop_migration_system(
-    pop_query: Query<(&BasePop, &MapCoordinate)>,
+    mut commands: Commands,
+    pop_query: Query<(Entity, &BasePop, &MapCoordinate)>,
+    tile_type_query: Query<&MapTile>,
     pinfos: Res<ProvinceInfos>,
     date: Res<Date>,
+    hex_map: Res<HexMap>,
+    spawned_pops: Res<SpawnedPops>,
+    mut migration_events: EventWriter<MigrationEvent>,
 ) {
-    if date.is_day {
-        for (pop, coord) in pop_query.iter() {
-            if pop.hunger > 0.0 {
+    if spawned_pops.0 && date.is_day {
+        // let migrated_to = HashMap::new();
+        for (ent, pop, coord) in pop_query.iter() {
+            let migration_factor = pop.hunger + 50.0;
+            if let Some(target_coord) = coord.neighbors_shuffled_iter().next() {
+                // println!("try migrate {:?} to {:?}", coord, target_coord);
+                let target_tile = if let Some(te) = hex_map.0.get(&target_coord) {
+                    te
+                } else {
+                    continue;
+                };
+                if tile_type_query.get(**target_tile).map_or(MapTileType::None, |tt| tt.tile_type) != MapTileType::Plains {
+                    println!("not a plains!");
+                    continue;
+                }
+                let target_factor = pinfos.0.get(&target_coord).unwrap().total_population;
+                if pop.size > 100 && migration_factor > target_factor as f64 {
+                    if individual_event(0.05) {
+                        println!("migrate {:?} to {:?}", coord, target_coord);
+                        let evt = MigrationEvent {
+                            source_pop_entity: ent,
+                            target_coord,
+                            size: 50,
+                        };
+                        migration_events.send(evt);
+                    }
+                }
             }
         }
     }
@@ -259,33 +410,47 @@ pub fn spawn_pops(
     }
     println!("pop setup");
     for (coord, tile) in tiles_query.iter() {
-        if tile.tile_type == MapTileType::Plains {
+        pinfos.0.insert(*coord, ProvinceInfo {
+            total_population: 0,
+            fertility: 1.0,
+            pops: Vec::new(),
+        });
+        if individual_event(0.1) && tile.tile_type == MapTileType::Plains {
             println!("spawn pop for {:?}", coord);
-            commands
-                .spawn()
-                .insert(BasePop {
-                    size: 1000,
-                    culture: CultureRef("Default".to_string()),
-                    religion: ReligionRef("Default".to_string()),
-                    class: Class::Farmer,
-                    factors: Vec::new(),
-                    resources: GoodsStorage(HashMap::new()),
-                    hunger: 0.0,
-                    growth: 0.0,
-                })
-                .insert(FarmingPop {
-                    resource: EconomicGood::Grain,
-                    harvest_date: DayOfYear {
-                        day: 15,
-                        month: 1,
-                    },
-                    resource_base_harvest: 250.0,
-                })
-                .insert(coord.clone());
-            pinfos.0.insert(*coord, ProvinceInfo {
-                total_population: 1000,
-                fertility: 1.0,
+            commands.add(PopSpawn {
+                size: 1000,
+                class: Class::Farmer,
+                culture: CultureRef("Default".to_string()),
+                religion: ReligionRef("Default".to_string()),
+                coord: *coord,
             });
+            // let pop_ent = commands
+            //     .spawn()
+            //     .insert(BasePop {
+            //         size: 1000,
+            //         culture: CultureRef("Default".to_string()),
+            //         religion: ReligionRef("Default".to_string()),
+            //         class: Class::Farmer,
+            //         factors: Vec::new(),
+            //         resources: GoodsStorage(HashMap::new()),
+            //         hunger: 0.0,
+            //         growth: 0.0,
+            //     })
+            //     .insert(FarmingPop {
+            //         resource: EconomicGood::Grain,
+            //         harvest_date: DayOfYear {
+            //             day: 15,
+            //             month: 1,
+            //         },
+            //         resource_base_harvest: 250.0,
+            //     })
+            //     .insert(coord.clone())
+            //     .id();
+            // pinfos.0.insert(*coord, ProvinceInfo {
+            //     total_population: 1000,
+            //     fertility: 1.0,
+            //     pops: vec![pop_ent],
+            // });
         }
         spawned_pops.0 = true;
     }
@@ -300,7 +465,10 @@ impl Plugin for PopPlugin {
             .add_system(farmer_production_system.system())
             .add_system(pop_growth_system.system())
             .add_system(spawn_pops.system())
+            .add_system(pop_migration_system.system())
+            .add_system_to_stage(FinishStage::Main, migration_event_system.system())
             .insert_resource(SpawnedPops(false))
+            .add_event::<MigrationEvent>()
             ;
 
     }

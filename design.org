@@ -19,6 +19,7 @@ rendering map as one sprite?
 each tile has a max agricultural output
 has both a percentage of arable land and quality
 
+
 ** tile modifiers
 target and growth rate?
 mod_gain = (target - mod) * growth

@@ -4,6 +4,8 @@ use std::{collections::{HashMap, HashSet}, convert::TryInto, fs::File, io::{Read
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use crate::{province::ProvinceInfo, stage::FinishStage};
 use crate::stage::InitStage;
 
@@ -82,11 +84,24 @@ impl MapCoordinate {
         ns
     }
 
+    pub fn neighbors_shuffled(&self) -> Vec<MapCoordinate> {
+        let mut result = self.neighbors();
+        result.shuffle(&mut thread_rng());
+        result
+    }
+
     pub fn neighbors_iter(&self) -> MapCoordinateIter {
         MapCoordinateIter {
             neighbors: self.neighbors(),
         }
     }
+
+    pub fn neighbors_shuffled_iter(&self) -> MapCoordinateIter {
+        MapCoordinateIter {
+            neighbors: self.neighbors_shuffled(),
+        }
+    }
+
     pub fn neighbors_in_radius(&self, radius: isize) -> Vec<MapCoordinate> {
         let mut items = Vec::new();
         for x in -radius..(radius + 1) {
