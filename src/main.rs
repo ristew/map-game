@@ -12,9 +12,11 @@ pub mod camera;
 pub mod time;
 pub mod province;
 pub mod stage;
+pub mod modifier;
 
 use bevy::{diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
 use bevy_tilemap::prelude::TilemapDefaultPlugins;
+use modifier::ModifierPlugin;
 use province::ProvincePlugin;
 // fuck yo namespace
 use ui::*;
@@ -55,6 +57,7 @@ fn main() {
         .add_plugin(PopPlugin)
         .add_plugin(ProvincePlugin)
         .add_plugin(TimePlugin)
+        .add_plugin(ModifierPlugin)
         .add_plugin(DiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();

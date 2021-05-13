@@ -6,8 +6,17 @@ mountains
 forest?
 swamp
 desert
-* TODO province modifiers
-coastal
+* TODO modifier system
+modifiers to a probability or other factor can come from:
+    global
+    country
+    province
+    culture
+    religion
+    pop
+    good fulfilment
+factors are applied as a result of events, technologies, decisions, buildings
+some expire while others are permanent
 * TODO basic pops
 * TODO rivers
 run through center or along edges?

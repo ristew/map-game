@@ -1,10 +1,10 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use bevy::{input::{
         ElementState,
         mouse::MouseButtonInput,
     }, prelude::*, render::{camera::{ActiveCameras, Camera, OrthographicProjection}, draw::OutsideFrustum}};
-use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, TileTextureAtlas}, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{GamePaused, GameSpeed}, ui::InfoBoxMode};
+use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, MapTile, OverlayCommand, TileTextureAtlas}, province::ProvinceInfos, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{Date, GamePaused, GameSpeed}, ui::InfoBoxMode};
 use crate::time::DateTimer;
 
 
@@ -171,6 +171,27 @@ pub fn info_box_change_system(
     if keyboard_input.pressed(KeyCode::N) {
         *info_box_mode = InfoBoxMode::ProvinceInfoMode;
     }
+    if keyboard_input.pressed(KeyCode::M) {
+        *info_box_mode = InfoBoxMode::ModifierSelectList;
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum CurrentOverlayType {
+    ProvincePop,
+    None,
+}
+
+pub fn overlay_input_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut current_overlay: ResMut<CurrentOverlayType>,
+) {
+    if keyboard_input.pressed(KeyCode::P) {
+        *current_overlay = CurrentOverlayType::ProvincePop;
+    }
+    if keyboard_input.pressed(KeyCode::O) {
+        *current_overlay = CurrentOverlayType::None;
+    }
 }
 
 pub fn change_speed_system(
@@ -201,6 +222,7 @@ impl Plugin for InputPlugin {
             .add_system(camera_movement_system.system())
             .add_system(tile_select_system.system())
             .add_system(tile_hold_pressed_system.system())
+            .add_system(overlay_input_system.system())
             .add_system(info_box_change_system.system());
     }
 }

@@ -1,6 +1,6 @@
 use bevy::{ecs::system::Command, prelude::*};
 use std::collections::HashMap;
-use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, province::{ProvinceInfo, ProvinceInfos}};
+use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, modifier::{self, ModifierStorage, ModifierType}, province::{ProvinceInfo, ProvinceInfos}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
@@ -134,15 +134,19 @@ pub struct Culture {
 
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct CountryRef(String);
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct CultureRef(String);
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ReligionRef(String);
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Class {
     Farmer,
     Laborer,
     Noble,
+    Merchant,
+    Slave,
 }
 pub struct FarmingPop {
     resource: EconomicGood,
@@ -172,14 +176,15 @@ impl BasePop {
 }
 
 pub fn farmer_production_system(
-    mut farmer_query: Query<(&mut BasePop, &FarmingPop, &MapCoordinate)>,
+    mut farmer_query: Query<(Entity, &mut BasePop, &FarmingPop, &MapCoordinate)>,
     tile_type_query: Query<&MapTile>,
     pinfos: Res<ProvinceInfos>,
     date: Res<Date>,
     hex_map: Res<HexMap>,
+    modifier_storage: Res<ModifierStorage>,
 ) {
     if date.is_day {
-        for (mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
+        for (ent, mut base_pop, farming_pop, coord) in farmer_query.iter_mut() {
             if date.days_after_doy(farming_pop.harvest_date) == 0 {
                 let pinfo = pinfos.0.get(&coord).unwrap();
                 let tile_entity = if let Some(te) = hex_map.0.get(&coord) {
@@ -198,7 +203,9 @@ pub fn farmer_production_system(
                 } else {
                     base_pop.size as f64
                 };
-                let total_harvest = dev_mean_sample(0.5, 1.0).clamp(0.5, 2.0) * 250.0 * pinfo.fertility * productive_pops;
+                let harvest_base = modifier_storage.modifiers_pop(ModifierType::HarvestSize, ent, &base_pop, &coord).apply(250.0 * pinfo.fertility * productive_pops);
+                println!("harvest_base {}", harvest_base);
+                let total_harvest = dev_mean_sample(0.5, 1.0).clamp(0.5, 2.0) * harvest_base;
                 // TODO: discriminate major landholding populations for capacity
                 base_pop.resources.set_resource_factor(farming_pop.resource, 0.1);
                 base_pop.resources.add_resources(farming_pop.resource, total_harvest);
@@ -257,7 +264,6 @@ struct PopChange {
 impl Command for PopChange {
     fn write(self: Box<Self>, world: &mut World) {
         let mut base_pop = world.entity_mut(self.pop_entity).get_mut::<BasePop>().unwrap();
-        println!("popchange: {} {}", base_pop.size, self.size);
         base_pop.size += self.size;
     }
 }
@@ -314,12 +320,12 @@ struct MigrationEvent {
 
 fn migration_event_system(
     mut commands: Commands,
-    mut pinfos: ResMut<ProvinceInfos>,
+    pinfos: Res<ProvinceInfos>,
     base_pop_query: Query<&BasePop>,
     mut migration_events: EventReader<MigrationEvent>,
 ) {
     for evt in migration_events.iter() {
-        println!("migration event {:?}", evt.target_coord);
+        // println!("migration event {:?}", evt.target_coord);
         commands.add(PopChange {
             size: -evt.size,
             pop_entity: evt.source_pop_entity,
@@ -355,7 +361,6 @@ fn migration_event_system(
 }
 
 fn pop_migration_system(
-    mut commands: Commands,
     pop_query: Query<(Entity, &BasePop, &MapCoordinate)>,
     tile_type_query: Query<&MapTile>,
     pinfos: Res<ProvinceInfos>,
@@ -367,7 +372,7 @@ fn pop_migration_system(
     if spawned_pops.0 && date.is_day {
         // let migrated_to = HashMap::new();
         for (ent, pop, coord) in pop_query.iter() {
-            let migration_factor = pop.hunger + 50.0;
+            let migration_factor = 250.0 * pop.hunger + 50.0;
             if let Some(target_coord) = coord.neighbors_shuffled_iter().next() {
                 // println!("try migrate {:?} to {:?}", coord, target_coord);
                 let target_tile = if let Some(te) = hex_map.0.get(&target_coord) {
@@ -376,13 +381,12 @@ fn pop_migration_system(
                     continue;
                 };
                 if tile_type_query.get(**target_tile).map_or(MapTileType::None, |tt| tt.tile_type) != MapTileType::Plains {
-                    println!("not a plains!");
                     continue;
                 }
                 let target_factor = pinfos.0.get(&target_coord).unwrap().total_population;
                 if pop.size > 100 && migration_factor > target_factor as f64 {
                     if individual_event(0.05) {
-                        println!("migrate {:?} to {:?}", coord, target_coord);
+                        // println!("migrate {:?} to {:?}", coord, target_coord);
                         let evt = MigrationEvent {
                             source_pop_entity: ent,
                             target_coord,

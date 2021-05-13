@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::{province::ProvinceInfo, stage::FinishStage};
+use crate::{input::CurrentOverlayType, province::{ProvinceInfo, ProvinceInfos}, stage::FinishStage, time::Date};
 use crate::stage::InitStage;
 
 use crate::pops::*;
@@ -432,6 +432,77 @@ fn map_tile_type_changed_system(
     }
 }
 
+pub enum OverlayCommand {
+    Map(HashMap<MapCoordinate, Color>),
+    Clear,
+}
+
+fn show_overlay_system(
+    tiles_query: Query<(&MapTile, &MapCoordinate)>,
+    overlay_command: Res<OverlayCommand>,
+    load_map: Res<LoadMap>,
+    date: Res<Date>,
+    mut tile_map_query: Query<&mut Tilemap>,
+) {
+    if load_map.0 != None {
+        return;
+    }
+    match &*overlay_command {
+        OverlayCommand::Map(map) => {
+            if overlay_command.is_changed() {
+                for (coord, color) in map.iter() {
+                    let point = coord.point3();
+                    for mut tile_map in tile_map_query.iter_mut() {
+                        let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
+                        tile.color = *color;
+                    }
+                }
+            }
+        },
+        OverlayCommand::Clear => {
+            if overlay_command.is_changed() {
+                for (map_tile, coord) in tiles_query.iter() {
+                    let point = coord.point3();
+                    for mut tile_map in tile_map_query.iter_mut() {
+                        let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
+                        tile.color = Color::WHITE;
+                    }
+                }
+            }
+        },
+    }
+}
+
+pub fn pop_overlay_system(
+    mut overlay_command: ResMut<OverlayCommand>,
+    tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
+    province_infos: Res<ProvinceInfos>,
+    current_overlay: Res<CurrentOverlayType>,
+    date: Res<Date>,
+) {
+    if (date.is_week || current_overlay.is_changed()) && *current_overlay == CurrentOverlayType::ProvincePop {
+        let mut pop_map = HashMap::new();
+        let mut max_pop = 0;
+        for coord in tile_coord_query.iter() {
+            let pop = province_infos.0.get(coord).map(|pi| pi.total_population).unwrap_or(0);
+            pop_map.insert(coord, pop);
+            if pop > max_pop {
+                max_pop = pop;
+            }
+        }
+        let mut tint_map = HashMap::new();
+        for (coord, pop) in pop_map.iter() {
+            if *pop > 0 {
+                let tint = Color::rgb(*pop as f32 / max_pop as f32, 0.1, 0.1);
+                tint_map.insert(**coord, tint);
+            }
+        }
+        *overlay_command = OverlayCommand::Map(tint_map);
+    } else if *current_overlay == CurrentOverlayType::None && current_overlay.is_changed() {
+        *overlay_command = OverlayCommand::Clear;
+    }
+}
+
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
@@ -442,11 +513,16 @@ impl Plugin for MapPlugin {
             .add_startup_system_to_stage(InitStage::LoadMap, setup_tile_sprite_handles_system.system())
             .init_resource::<SpriteHandles>()
             .init_resource::<TileSpriteIndices>()
+            .add_event::<OverlayCommand>()
             .insert_resource(LoadMap(None))
             .insert_resource(HexMap(HashMap::new()))
+            .insert_resource(OverlayCommand::Clear)
+            .insert_resource(CurrentOverlayType::None)
             .add_stage_after(CoreStage::PostUpdate, FinishStage::Main, SystemStage::single_threaded())
             .add_system(load_tile_map_system.system())
             .add_system(build_world.system())
+            .add_system(pop_overlay_system.system())
+            .add_system(show_overlay_system.system())
             .add_system_to_stage(FinishStage::Main, map_tile_type_changed_system.system())
             .add_system(position_translation.system());
     }

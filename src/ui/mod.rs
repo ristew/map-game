@@ -4,10 +4,12 @@ use bevy::{
 use std::sync::{Arc, RwLock};
 use crate::{province::ProvinceInfos, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
+use crate::modifier::ModifierType;
 
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, HexMap};
 use super::save::*;
+use strum::{EnumIter, IntoEnumIterator};
 
 const INFO_BAR_HEIGHT: f32 = 20.0;
 
@@ -18,6 +20,7 @@ pub struct UiMaterials {
     water_button: Handle<ColorMaterial>,
     desert_button: Handle<ColorMaterial>,
     mountain_button: Handle<ColorMaterial>,
+    default_font: Handle<Font>,
 }
 
 impl UiMaterials {
@@ -57,7 +60,8 @@ impl Default for MapEditor {
     }
 }
 
-
+#[derive(Default)]
+pub struct SelectModifier(Option<ModifierType>);
 
 pub fn change_button_system(
     mut commands: Commands,
@@ -66,6 +70,7 @@ pub fn change_button_system(
         (Changed<Interaction>, With<Button>),
     >,
     mut map_editor_query: Query<&mut MapEditor>,
+    mut select_modifier: ResMut<SelectModifier>,
 ) {
     for (ui_button, interaction) in interaction_query.iter_mut() {
         if *interaction == Interaction::Clicked {
@@ -87,6 +92,9 @@ pub fn change_button_system(
                         map_editor.brush_size += v as usize;
                     }
                 },
+                UiButtonType::SelectModifier(modifier_type) => {
+                    *select_modifier = SelectModifier(Some(modifier_type));
+                }
                 UiButtonType::SaveMap => {
                     commands.add(SaveMapCommand);
                 }
@@ -136,12 +144,12 @@ pub enum UiButtonType {
     ChangeTileType(MapTileType),
     BrushSizeType(isize),
     SaveMap,
+    SelectModifier(ModifierType),
 }
 pub struct UiButton(UiButtonType);
 
 pub struct UiBuilder<'a> {
     materials: Res<'a, UiMaterials>,
-    default_font: Handle<Font>,
 }
 
 
@@ -200,7 +208,7 @@ impl <'a> UiBuilder<'a> {
                     height: Val::Px(INFO_BAR_HEIGHT)
                 },
                 padding: Rect::all(Val::Px(5.0)),
-                flex_direction: FlexDirection::ColumnReverse,
+                flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Stretch,
                 align_content: AlignContent::FlexStart,
                 justify_content: JustifyContent::FlexStart,
@@ -236,7 +244,7 @@ impl <'a> UiBuilder<'a> {
             text: Text::with_section(
                 s,
                 TextStyle {
-                    font: self.default_font.clone(),
+                    font: self.materials.default_font.clone(),
                     font_size: 12.0,
                     color: Color::BLACK,
                 },
@@ -275,8 +283,10 @@ impl <'a> UiBuilder<'a> {
 
 pub fn setup_ui_assets(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    let default_font = asset_server.load("fonts/DejaVuSansMono.ttf");
     commands.insert_resource(UiMaterials {
         background_info: materials.add(Color::rgb(0.7, 0.7, 0.4).into()),
         default_button: materials.add(Color::rgb(0.8, 0.8, 0.8).into()),
@@ -284,6 +294,7 @@ pub fn setup_ui_assets(
         water_button: materials.add(MapTileType::Water.color().into()),
         desert_button: materials.add(MapTileType::Desert.color().into()),
         mountain_button: materials.add(MapTileType::Mountain.color().into()),
+        default_font,
     });
 }
 
@@ -291,9 +302,10 @@ pub fn setup_ui_assets(
 pub enum InfoBoxMode {
     MapDrawingMode,
     ProvinceInfoMode,
+    ModifierSelectList,
 }
 
-pub fn ui_info_box(
+pub fn map_painting_box(
     commands: &mut Commands,
     builder: &UiBuilder,
 ) -> Entity {
@@ -367,15 +379,51 @@ pub fn province_info_box(
     province_info_box.id()
 }
 
+pub fn modifier_select_box(
+    commands: &mut Commands,
+    builder: &UiBuilder,
+) -> Entity {
+    let mut info_box = commands
+        .spawn_bundle(builder.info_box());
+    info_box
+        .insert(UiContainer)
+        .insert(InfoBoxMode::ModifierSelectList)
+        .with_children(|parent| {
+            for modifier_type in ModifierType::iter() {
+                parent.spawn_bundle(builder.button())
+                    .insert(UiButton(UiButtonType::SelectModifier(modifier_type)))
+                    .with_children(|parent| {
+                        parent.spawn_bundle(builder.text_info(format!("{:?}", modifier_type)));
+                    });
+            }
+        })
+        .id()
+}
+
 fn info_box_system(
-    mut info_boxes: Query<(&InfoBoxMode, &mut Style)>,
+    mut commands: Commands,
+    mut info_boxes: Query<(Entity, &InfoBoxMode)>,
+    ui_materials: Res<UiMaterials>,
     info_box_mode: Res<InfoBoxMode>,
 ) {
-    for (box_mode, mut style) in info_boxes.iter_mut() {
-        if *box_mode == *info_box_mode {
-            style.display = Display::Flex;
-        } else {
-            style.display = Display::None;
+    let builder = UiBuilder {
+        materials: ui_materials,
+    };
+    for (ent, box_mode) in info_boxes.iter_mut() {
+        if *box_mode != *info_box_mode {
+            println!("destroy and rebuild info box");
+            commands.entity(ent).despawn_recursive();
+            match *info_box_mode {
+                InfoBoxMode::MapDrawingMode => {
+                    map_painting_box(&mut commands, &builder);
+                },
+                InfoBoxMode::ProvinceInfoMode => {
+                    province_info_box(&mut commands, &builder);
+                }
+                InfoBoxMode::ModifierSelectList => {
+                    modifier_select_box(&mut commands, &builder);
+                }
+            }
         }
     }
 }
@@ -409,7 +457,17 @@ pub fn info_tag_system(
                 }
             },
             &InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
-            &InfoTag::DateDisplay => format!("({}{}) year {}, {}/{}", game_speed.0, game_paused.0.then(|| "paused").unwrap_or(""), date.year, date.month, date.day),
+            &InfoTag::DateDisplay => format!("({}) year {}, {:02}/{:02}", game_paused.0.then(|| "p").unwrap_or(format!("{}", game_speed.0).as_str()), date.year, date.month, date.day),
+            &InfoTag::GlobalPopulation => {
+                if !date.is_month {
+                    continue;
+                }
+                let mut pop = 0;
+                for pinfo in province_infos.0.iter() {
+                    pop += pinfo.total_population;
+                }
+                format!("total population: {}", pop)
+            }
             t => format!("{:?}", t),
         };
         text.sections[0].value = info_string;
@@ -423,6 +481,7 @@ pub enum InfoTag {
     DateDisplay,
     SelectedProvinceName,
     SelectedProvincePopulation,
+    GlobalPopulation,
     BrushSize,
     Text(String),
 }
@@ -469,6 +528,9 @@ pub fn ui_info_bar(
         .with_children(|parent| {
             parent.spawn_bundle(builder.text_info(""))
                 .insert(InfoTag::DateDisplay);
+            parent.spawn_bundle(builder.text_info(" | "));
+            parent.spawn_bundle(builder.text_info(""))
+                .insert(InfoTag::GlobalPopulation);
         });
 
     info_bar.id()
@@ -498,18 +560,14 @@ fn issue_1135_system(
 
 pub fn setup_ui<'a>(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     ui_materials: Res<'a, UiMaterials>,
     windows: Res<Windows>,
 ) {
-    let default_font = asset_server.load("fonts/DejaVuSansMono.ttf");
     commands.spawn_bundle((MapEditor::default(),));
     let builder = UiBuilder {
         materials: ui_materials,
-        default_font: default_font,
     };
 
-    ui_info_box(&mut commands, &builder);
     province_info_box(&mut commands, &builder);
     let window = windows.get_primary().unwrap();
     ui_info_bar(&mut commands, &builder, window.height());
@@ -525,6 +583,7 @@ impl Plugin for UiPlugin {
             .add_startup_system(setup_ui_assets.system())
             .add_startup_stage("ui_setup", ui_setup)
             .insert_resource(InfoBoxMode::ProvinceInfoMode)
+            .init_resource::<SelectModifier>()
             .add_system(info_tag_system.system())
             .add_system(change_button_system.system())
             .add_system(info_box_system.system())
