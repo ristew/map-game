@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
 };
-use std::sync::{Arc, RwLock};
+use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
 use crate::{province::ProvinceInfos, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 use crate::modifier::ModifierType;
@@ -10,6 +10,8 @@ use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, HexMap};
 use super::save::*;
 use strum::{EnumIter, IntoEnumIterator};
+
+pub mod tree;
 
 const INFO_BAR_HEIGHT: f32 = 20.0;
 
@@ -303,6 +305,7 @@ pub enum InfoBoxMode {
     MapDrawingMode,
     ProvinceInfoMode,
     ModifierSelectList,
+    ProvincePopList,
 }
 
 pub fn map_painting_box(
@@ -400,6 +403,21 @@ pub fn modifier_select_box(
         .id()
 }
 
+pub fn pop_list_box(
+    commands: &mut Commands,
+    builder: &UiBuilder,
+) -> Entity {
+    let mut info_box = commands
+        .spawn_bundle(builder.info_box());
+    info_box
+        .insert(UiContainer)
+        .insert(InfoBoxMode::ProvincePopList)
+        .with_children(|parent| {
+
+        })
+        .id()
+}
+
 fn info_box_system(
     mut commands: Commands,
     mut info_boxes: Query<(Entity, &InfoBoxMode)>,
@@ -422,7 +440,10 @@ fn info_box_system(
                 }
                 InfoBoxMode::ModifierSelectList => {
                     modifier_select_box(&mut commands, &builder);
-                }
+                },
+                InfoBoxMode::ProvincePopList => {
+                    pop_list_box(&mut commands, &builder);
+                },
             }
         }
     }
@@ -474,7 +495,7 @@ pub fn info_tag_system(
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InfoTag {
     ProvincePopulation(MapCoordinate),
     ProvinceName(MapCoordinate),
@@ -485,34 +506,7 @@ pub enum InfoTag {
     BrushSize,
     Text(String),
 }
-// descriptor to set ui and create changeable text objects
-pub enum UiComponent {
-    InfoText(InfoTag),
-    List(Vec<Box<UiComponent>>),
-}
 
-impl UiComponent {
-    fn render(
-        &self,
-        builder: &UiBuilder,
-        commands: &mut Commands,
-    ) -> Entity {
-        match self {
-            Self::InfoText(info_tag) => {
-                let mut base = commands.spawn();
-                base.insert_bundle(builder.text_info(""))
-                    .insert(info_tag.clone());
-                base.id()
-            },
-            Self::List(list) => {
-                let children = list.iter().map(|comp| { comp.render(builder, commands) }).collect::<Vec<Entity>>();
-                let mut base = commands.spawn();
-                base.insert_children(0, &children);
-                base.id()
-            }
-        }
-    }
-}
 pub struct InfoBoxChangeCommand;
 
 pub fn ui_info_bar(

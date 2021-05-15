@@ -493,7 +493,11 @@ pub fn pop_overlay_system(
         let mut tint_map = HashMap::new();
         for (coord, pop) in pop_map.iter() {
             if *pop > 0 {
-                let tint = Color::rgb(*pop as f32 / max_pop as f32, 0.1, 0.1);
+                let brightness = *pop as f32 / max_pop as f32;
+                let tint = Color::rgb(brightness, 0.2, 0.2);
+                tint_map.insert(**coord, tint);
+            } else {
+                let tint = Color::rgb(0.0, 0.2, 0.2);
                 tint_map.insert(**coord, tint);
             }
         }

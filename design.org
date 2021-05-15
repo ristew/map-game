@@ -19,6 +19,22 @@ rendering map as one sprite?
 each tile has a max agricultural output
 has both a percentage of arable land and quality
 
+peasants and nobles involved in agriculture
+knightly class?
+laborers and slaves serve upper classes
+how detailed to model?
+number of farms - avg size
+production per farm based on size, fertility, and number of workers
+some farmers are tenants of larger landholders - they give some (like half) to the holder
+the landholders also use laborers and slaves to harvest a trade resource, like olive oil or wine
+how to account for one culture to have more favorable position in province with other?
+harvest_pct factor
+0.2 landlordized, 0.6 arable land
+total_harvest = 1000
+to_landlords = landlordized * 0.5 * total_harvest
+should we model land ownership by non-local entities (nobles or even the crown)?
+
+
 
 ** tile modifiers
 target and growth rate?

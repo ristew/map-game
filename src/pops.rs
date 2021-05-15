@@ -372,7 +372,7 @@ fn pop_migration_system(
     if spawned_pops.0 && date.is_day {
         // let migrated_to = HashMap::new();
         for (ent, pop, coord) in pop_query.iter() {
-            let migration_factor = 250.0 * pop.hunger + 50.0;
+            let migration_factor = 200.0 * pop.hunger + 50.0;
             if let Some(target_coord) = coord.neighbors_shuffled_iter().next() {
                 // println!("try migrate {:?} to {:?}", coord, target_coord);
                 let target_tile = if let Some(te) = hex_map.0.get(&target_coord) {
@@ -385,12 +385,12 @@ fn pop_migration_system(
                 }
                 let target_factor = pinfos.0.get(&target_coord).unwrap().total_population;
                 if pop.size > 100 && migration_factor > target_factor as f64 {
-                    if individual_event(0.05) {
+                    if individual_event(0.01) {
                         // println!("migrate {:?} to {:?}", coord, target_coord);
                         let evt = MigrationEvent {
                             source_pop_entity: ent,
                             target_coord,
-                            size: 50,
+                            size: 30,
                         };
                         migration_events.send(evt);
                     }
