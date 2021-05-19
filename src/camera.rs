@@ -2,8 +2,10 @@ use std::cmp::max;
 
 use bevy::{input::mouse::MouseWheel, prelude::*, render::{camera::{Camera, OrthographicProjection, CameraProjection, ActiveCameras},
              draw::OutsideFrustum}, sprite::SpriteSettings};
-use crate::*;
 
+use crate::{map::MapCoordinate, tag::MapCamera};
+use crate::constant::*;
+use crate::tag::*;
 
 pub fn camera_view_check(
     camera_query: Query<(&Camera, &Transform, &OrthographicProjection, &MapCamera), Changed<Transform>>,

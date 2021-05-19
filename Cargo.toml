@@ -18,3 +18,4 @@ dashmap = "4.0.1"
 bevy_tilemap = { git = "https://github.com/joshuajbouw/bevy_tilemap" }
 strum = { version = "0.20", features = ["derive"] }
 strum_macros = "0.20"
+macroquad = "0.3"

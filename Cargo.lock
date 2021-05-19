@@ -460,7 +460,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb36a879cdc96f554b62dd7c7c02392a9a10e94082e4bc686a8242e1d674e7cc"
 dependencies = [
  "bevy_reflect",
- "glam",
+ "glam 0.13.1",
 ]
 
 [[package]]
@@ -491,7 +491,7 @@ dependencies = [
  "bevy_utils",
  "downcast-rs",
  "erased-serde",
- "glam",
+ "glam 0.13.1",
  "parking_lot",
  "serde",
  "smallvec",
@@ -1335,6 +1335,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "fontdue"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c75712fff1702bac51b7eaa5a5ca9f9853b8055ef5906088a32f4fe196595a1d"
+dependencies = [
+ "hashbrown",
+ "ttf-parser",
+]
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1623,6 +1633,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "333928d5eb103c5d4050533cec0384302db6be8ef7d3cebd30ec6a35350353da"
+
+[[package]]
 name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1776,9 +1792,15 @@ version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c592a42961cf144138e04a4bddbe3ef5c6f9fe6ef5eff6fd3bb767b254194171"
 dependencies = [
- "glam",
+ "glam 0.13.1",
  "lazy_static",
 ]
+
+[[package]]
+name = "hound"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a164bb2ceaeff4f42542bdb847c41517c78a60f5649671b2a07312b6e117549"
 
 [[package]]
 name = "ident_case"
@@ -1952,6 +1974,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
+name = "lewton"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "777b48df9aaab155475a83a7df3070395ea1ac6902f5cd062b8f2b028075c030"
+dependencies = [
+ "byteorder",
+ "ogg",
+ "tinyvec",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2036,6 +2069,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "macroquad"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d252c1d0c6ccbc9e44b0fdd8fe0b53d316f02811716104daf7b804a1f04a8360"
+dependencies = [
+ "bumpalo",
+ "fontdue",
+ "glam 0.14.0",
+ "image",
+ "macroquad_macro",
+ "miniquad",
+ "quad-rand",
+ "rodio",
+]
+
+[[package]]
+name = "macroquad_macro"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ecb8935bc6a74b8374439c0bd8d2857ae1499fde9fbba76bb00722f7213b42d"
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2051,6 +2106,7 @@ dependencies = [
  "bevy",
  "bevy_tilemap",
  "dashmap",
+ "macroquad",
  "rand",
  "rand_distr",
  "serde",
@@ -2112,6 +2168,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e21c73734c69dc95696c9ed8926a2b393171d98b3f5f5935686a26a487ab9b90"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "miniquad"
+version = "0.3.0-alpha.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e26b0198031cdbd234dca807a06294bb2423bee1b5d914a780c649118da0b9d"
+dependencies = [
+ "sapp-android",
+ "sapp-darwin",
+ "sapp-dummy",
+ "sapp-ios",
+ "sapp-linux",
+ "sapp-wasm",
+ "sapp-windows",
 ]
 
 [[package]]
@@ -2487,6 +2558,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogg"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6951b4e8bf21c8193da321bcce9c9dd2e13c858fe078bf9054a288b419ae5d6e"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2601,6 +2681,12 @@ checksum = "a152013215dca273577e18d2bf00fa862b89b24169fb78c4c95aeb07992c9cec"
 dependencies = [
  "unicode-xid",
 ]
+
+[[package]]
+name = "quad-rand"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "658fa1faf7a4cc5f057c9ee5ef560f717ad9d8dc66d975267f709624d6e1ab88"
 
 [[package]]
 name = "quote"
@@ -2725,6 +2811,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b65c2eda643191f6d1bb12ea323a9db8d9ba95374e9be3780b5a9fb5cfb8520f"
 dependencies = [
  "cpal",
+ "hound",
+ "lewton",
  "minimp3",
 ]
 
@@ -2778,6 +2866,66 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "sapp-android"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb57c363bd1f1afeb1f16207bc425bc5672db23920c1adf1545000fc4d4f84f9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "sapp-darwin"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0310e2445f307468aa13f1cde94d6fba6b8fd329afbb642dedbe3faf1a145f31"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "sapp-dummy"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66f1ad26a5b6c682b9ca27c66db9aa91002b8d98a82ac7101ded57285215a478"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "sapp-ios"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "081e6e5261c9ac2e938979b6a854a53b439f065fc3c897205ce7e69d3028b4a9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "sapp-linux"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbdb2f8011955c62544d9e626a58333e788810d00bd7411d52b81611b92af142"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "sapp-wasm"
+version = "0.1.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00e859e8645a3bcb85aecd40bab883438e4105f21b21bccbeac2348760f508bb"
+
+[[package]]
+name = "sapp-windows"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8fa2d1f641f76f8397cc91c1b7327c6538d4f7897c185d9aac8431cef940e56"
+dependencies = [
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -3121,6 +3269,21 @@ name = "thunderdome"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7572415bd688d401c52f6e36f4c8e805b9ae1622619303b9fa835d531db0acae"
+
+[[package]]
+name = "tinyvec"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b5220f05bb7de7f3f53c7c065e1199b3172696fe2db9f9c4d8ad9b4ee74c342"
+dependencies = [
+ "tinyvec_macros",
+]
+
+[[package]]
+name = "tinyvec_macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "toml"
