@@ -25,7 +25,7 @@ impl MapCoordinate {
     }
 
     pub fn pixel_pos(&self) -> (f32, f32) {
-        let tile_x = (TILE_SIZE_X - 10.0) * (self.x as f32) + 10.0;
+        let tile_x = TILE_SIZE_X * self.x as f32;
         (tile_x,
          TILE_SIZE_Y * (self.y as f32 + 1.0 + 0.5 * self.x as f32))
     }

@@ -140,7 +140,7 @@ pub struct CountryRef(String);
 pub struct CultureRef(String);
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ReligionRef(String);
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Class {
     Farmer,
     Laborer,
@@ -458,6 +458,20 @@ pub fn spawn_pops(
         }
         spawned_pops.0 = true;
     }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum PopField {
+    Culture(CultureRef),
+    Religion(ReligionRef),
+    Coordinate(MapCoordinate),
+    Class(Class),
+}
+
+pub struct PopId(pub usize);
+
+pub struct PopStorage {
+    pub pop_map: HashMap<PopField, PopId>,
 }
 
 pub struct PopPlugin;
