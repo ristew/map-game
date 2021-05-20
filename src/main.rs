@@ -38,10 +38,13 @@ pub struct RenderContext<'a> {
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn load_textures(&mut self) {
+    pub async fn load_textures(&mut self) -> Result<(), Box<dyn Error>> {
         for terrain_type in TerrainType::iter() {
             let path_str = format!("assets/textures/{:?}.png", terrain_type);
+            let texture = load_texture(&path_str).await?;
+            self.terrain_textures.insert(terrain_type, texture);
         }
+        Ok(())
     }
     pub fn terrain_texture(&self, terrain_type: TerrainType) -> Texture2D {
         *self.terrain_textures.get(&terrain_type).unwrap()
@@ -100,6 +103,13 @@ impl Province {
 
 pub struct Map(pub HashMap<MapCoordinate, Province>);
 
+impl Map {
+    pub fn new(width: usize, height: usize) -> Map {
+        let mut inner_map = HashMap::new();
+        for i in
+    }
+}
+
 // what we save from the map editor
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaseProvince {
@@ -112,6 +122,7 @@ pub struct GameState<'a> {
     map: Map,
     ctx: RenderContext<'a>,
 }
+
 
 impl<'a> GameState<'a> {
     pub fn draw_map(&self) {
@@ -155,7 +166,7 @@ async fn main() {
             camera: &camera,
         }
     };
-    game_state.ctx.load_textures();
+    game_state.ctx.load_textures().await.unwrap();
     if let Err(e) = game_state.load_map() {
         eprintln!("{}", e);
     }
