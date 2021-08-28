@@ -1,4 +1,7 @@
 extern crate bevy;
+#[macro_user]
+extern crate map_derive;
+
 
 pub mod ui;
 pub mod tag;

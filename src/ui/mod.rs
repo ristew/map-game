@@ -2,7 +2,7 @@ use bevy::{
     prelude::*,
 };
 use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
-use crate::{province::ProvinceInfos, time::{GamePaused, GameSpeed}};
+use crate::{province::Provinces, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 use crate::modifier::ModifierType;
 
@@ -453,7 +453,7 @@ pub fn info_tag_system(
     mut info_tag_query: Query<(&InfoTag, &mut Text)>,
     selected_query: Query<(&MapCoordinate, &MapTile, &Selected)>,
     map_editor_query: Query<&MapEditor>,
-    province_infos: Res<ProvinceInfos>,
+    province_infos: Res<Provinces>,
     date: Res<Date>,
     game_speed: Res<GameSpeed>,
     game_paused: Res<GamePaused>,

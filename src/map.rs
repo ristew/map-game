@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::{input::CurrentOverlayType, province::{ProvinceInfo, ProvinceInfos}, stage::FinishStage, time::Date};
+use crate::{input::CurrentOverlayType, province::{Province, Provinces}, stage::FinishStage, time::Date};
 use crate::stage::InitStage;
 
 use crate::pops::*;
@@ -476,7 +476,7 @@ fn show_overlay_system(
 pub fn pop_overlay_system(
     mut overlay_command: ResMut<OverlayCommand>,
     tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
-    province_infos: Res<ProvinceInfos>,
+    province_infos: Res<Provinces>,
     current_overlay: Res<CurrentOverlayType>,
     date: Res<Date>,
 ) {

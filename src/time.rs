@@ -55,6 +55,10 @@ impl Date {
             res as usize
         }
     }
+
+    pub fn is_day_of_year(&self, day_of_year: DayOfYear) -> bool {
+        self.days_after_doy(day_of_year) == 0
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
