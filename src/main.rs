@@ -1,5 +1,5 @@
 extern crate bevy;
-#[macro_user]
+#[macro_use]
 extern crate map_derive;
 
 

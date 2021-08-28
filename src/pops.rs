@@ -1,4 +1,6 @@
-use bevy::{ecs::{system::Command, world::EntityRef}, prelude::*};
+use bevy::{ecs::{component::Component, system::Command, world::EntityRef}, prelude::*};
+use rand::{Rng, distributions::Slice, thread_rng};
+use rand_distr::Uniform;
 use std::collections::HashMap;
 use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, modifier::{self, ModifierStorage, ModifierType}, province::{Province, Provinces}};
 use crate::time::*;
@@ -6,7 +8,63 @@ use crate::probability::*;
 use crate::stage::*;
 
 pub trait GameRef {
-    fn get(&self, world: &World) -> EntityRef<'_>;
+    fn get<T>(&self, world: &World) -> &T where T: Component;
+}
+
+pub enum SettlementFactorType {
+    CarryingCapacity,
+}
+
+pub enum FactorDecay {
+    Linear(f32),
+    Exponential(f32),
+    None,
+}
+
+pub struct Factor<T> {
+    ftype: T,
+    amount: f32,
+    decay: FactorDecay,
+}
+
+impl<T> Factor<T> {
+    pub fn decay(&mut self) -> f32 {
+        let this_decay = match self.decay {
+            FactorDecay::Linear(n) => n,
+            FactorDecay::Exponential(n) => self.amount * n,
+            FactorDecay::None => 0.0,
+        };
+        self.amount = (self.amount - this_decay).max(0.0);
+        this_decay
+    }
+
+    pub fn add(&mut self, amt: f32) {
+        self.amount += amt;
+    }
+}
+
+pub struct Factors<T> {
+    inner: HashMap<T, Factor<T>>,
+}
+
+impl<T> Factors<T> where T: Eq + Hash {
+    pub fn decay(&mut self) {
+        for factor in self.0.values().iter_mut() {
+            factor.decay();
+        }
+    }
+
+    pub fn add(&mut self, ftype: T, amt: f32) {
+        if !self.inner.contains_key(ftype) {
+            self.inner.insert(ftype, 0.0);
+        }
+
+        *self.inner.get_mut().unwrap() += amt;
+    }
+
+    pub fn factor(&self, ftype: T) -> f32 {
+        self.inner.get(&ftype).unwrap_or(0.0)
+    }
 }
 
 pub struct Settlement {
@@ -16,12 +74,28 @@ pub struct Settlement {
 #[derive(GameRef)]
 pub struct SettlementRef(pub Entity);
 
+impl SettlementRef {
+    pub fn carrying_capacity(&self, world: &World) -> f32 {
+        100.0
+    }
+
+    pub fn population(&self, world: &World) -> usize {
+        let mut total_pop = 0;
+        for pop_ref in self.get::<Pops>(world).0.iter() {
+            total_pop += pop_ref.get::<Pop>(world).size;
+        }
+        total_pop
+    }
+}
+
 pub struct Pop {
     size: usize,
 }
 
 #[derive(GameRef)]
 pub struct PopRef(pub Entity);
+
+pub struct Pops(pub Vec<PopRef>);
 
 pub struct FarmingPop {
     good: EconomicGood,
@@ -41,13 +115,13 @@ pub fn harvest_system(
         let mut farmed_amount = pop.size as f32;
         let carrying_capacity = settlement_ref.carrying_capacity(world);
         let comfortable_limit = carrying_capacity / 2.0;
-        let pop_size = settlement_ref.get(world).population(world) as f32;
+        let pop_size = settlement_ref.population(world) as f32;
         if pop_size > comfortable_limit {
             // population pressure on available land, seek more
-            world.add_command(Box::new(PopSeekMigrationCommand {
-                pop: pop.clone(),
-                pressure: (pop_size / comfortable_limit).powi(2),
-            }))
+            // world.add_command(Box::new(PopSeekMigrationCommand {
+            //     pop: pop.clone(),
+            //     pressure: (pop_size / comfortable_limit).powi(2),
+            // }))
         }
         if pop_size > carrying_capacity {
             farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
@@ -56,11 +130,11 @@ pub fn harvest_system(
         //     // println!("failed harvest! halving farmed goods");
         //     farmed_amount *= 0.7;
         // }
-        world.add_command(Box::new(SetGoodsCommand {
-            good_type: farmed_good,
-            amount: farmed_amount * 300.0,
-            pop: pop.clone(),
-        }));
+        // world.add_command(Box::new(SetGoodsCommand {
+        //     good_type: farmed_good,
+        //     amount: farmed_amount * 300.0,
+        //     pop: pop.clone(),
+        // }));
     }
 }
 
@@ -125,7 +199,7 @@ fn map_string(list: Vec<&str>) -> Vec<String> {
 }
 
 pub fn sample_list(list: &Vec<String>) -> String {
-    thread_rng().sample(Slice::new(list).unwrap()).clone()
+    rand::thread_rng().sample(Slice::new(list).unwrap()).clone()
 }
 
 impl Language {
@@ -180,7 +254,8 @@ impl Language {
         name += &sample_list(&self.vowels);
         name += &sample_list(&self.end_consonants);
         name += &self.maybe_vowel(0.3).unwrap_or("".to_owned());
-        to_title_case(name.as_str())
+        name
+        // to_title_case(name.as_str())
     }
 }
 
@@ -190,13 +265,13 @@ impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
-            .add_system(farmer_production_system.system())
-            .add_system(pop_growth_system.system())
-            .add_system(spawn_pops.system())
-            .add_system(pop_migration_system.system())
-            .add_system_to_stage(FinishStage::Main, migration_event_system.system())
-            .insert_resource(SpawnedPops(false))
-            .add_event::<MigrationEvent>()
+            // .add_system(farmer_production_system.system())
+            // .add_system(pop_growth_system.system())
+            // .add_system(spawn_pops.system())
+            // .add_system(pop_migration_system.system())
+            // .add_system_to_stage(FinishStage::Main, migration_event_system.system())
+            // .insert_resource(SpawnedPops(false))
+            // .add_event::<MigrationEvent>()
             ;
 
     }

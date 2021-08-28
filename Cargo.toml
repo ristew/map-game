@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-map_derive = { path = "map-derive", version = "0.1.0" }
+map-derive = { path = "map-derive", version = "0.1.0" }
 bevy = "0.5"
 # bevy = { git = "https://github.com/bevyengine/bevy" }
 rand = "*"

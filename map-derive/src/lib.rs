@@ -26,8 +26,11 @@ pub fn game_ref_derive(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics crate::pops::GameRef for #name #ty_generics #where_clause {
-            fn get(&self, world: &World) -> EntityRef<'_> {
-                world.entity(self.0)
+            // fn get_ref<'w>(&self, world: &'w World) -> EntityRef<'w> {
+            //     world.entity(self.0)
+            // }
+            fn get<T>(&self, world: &World) -> &T where T: Component {
+                world.get::<T>(self.0).unwrap()
             }
         }
     };

@@ -2040,12 +2040,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "map-derive"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "map-game"
 version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_tilemap",
  "dashmap",
+ "map-derive",
  "rand",
  "rand_distr",
  "serde",
