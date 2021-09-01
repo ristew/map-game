@@ -2,9 +2,8 @@ use bevy::{
     prelude::*,
 };
 use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
-use crate::{province::Provinces, time::{GamePaused, GameSpeed}};
+use crate::{province::ProvinceMap, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
-use crate::modifier::ModifierType;
 
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, HexMap};
@@ -62,8 +61,8 @@ impl Default for MapEditor {
     }
 }
 
-#[derive(Default)]
-pub struct SelectModifier(Option<ModifierType>);
+// #[derive(Default)]
+// pub struct SelectModifier(Option<ModifierType>);
 
 pub fn change_button_system(
     mut commands: Commands,
@@ -72,7 +71,7 @@ pub fn change_button_system(
         (Changed<Interaction>, With<Button>),
     >,
     mut map_editor_query: Query<&mut MapEditor>,
-    mut select_modifier: ResMut<SelectModifier>,
+    // mut select_modifier: ResMut<SelectModifier>,
 ) {
     for (ui_button, interaction) in interaction_query.iter_mut() {
         if *interaction == Interaction::Clicked {
@@ -94,9 +93,9 @@ pub fn change_button_system(
                         map_editor.brush_size += v as usize;
                     }
                 },
-                UiButtonType::SelectModifier(modifier_type) => {
-                    *select_modifier = SelectModifier(Some(modifier_type));
-                }
+                // UiButtonType::SelectModifier(modifier_type) => {
+                //     *select_modifier = SelectModifier(Some(modifier_type));
+                // }
                 UiButtonType::SaveMap => {
                     commands.add(SaveMapCommand);
                 }
@@ -146,8 +145,8 @@ pub enum UiButtonType {
     ChangeTileType(MapTileType),
     BrushSizeType(isize),
     SaveMap,
-    SelectModifier(ModifierType),
-}
+    // SelectModifier(ModifierType),
+ }
 pub struct UiButton(UiButtonType);
 
 pub struct UiBuilder<'a> {
@@ -392,13 +391,13 @@ pub fn modifier_select_box(
         .insert(UiContainer)
         .insert(InfoBoxMode::ModifierSelectList)
         .with_children(|parent| {
-            for modifier_type in ModifierType::iter() {
-                parent.spawn_bundle(builder.button())
-                    .insert(UiButton(UiButtonType::SelectModifier(modifier_type)))
-                    .with_children(|parent| {
-                        parent.spawn_bundle(builder.text_info(format!("{:?}", modifier_type)));
-                    });
-            }
+            // for modifier_type in ModifierType::iter() {
+            //     parent.spawn_bundle(builder.button())
+            //         .insert(UiButton(UiButtonType::SelectModifier(modifier_type)))
+            //         .with_children(|parent| {
+            //             parent.spawn_bundle(builder.text_info(format!("{:?}", modifier_type)));
+            //         });
+            // }
         })
         .id()
 }
@@ -453,14 +452,19 @@ pub fn info_tag_system(
     mut info_tag_query: Query<(&InfoTag, &mut Text)>,
     selected_query: Query<(&MapCoordinate, &MapTile, &Selected)>,
     map_editor_query: Query<&MapEditor>,
-    province_infos: Res<Provinces>,
+    province_info_query: Query<(&Province)>,
+    province_map: Res<ProvinceMap>,
     date: Res<Date>,
     game_speed: Res<GameSpeed>,
     game_paused: Res<GamePaused>,
 ) {
     for (info_tag, mut text) in info_tag_query.iter_mut() {
         let info_string = match info_tag {
-            &InfoTag::ProvincePopulation(coord) => format!("Total population: {}", province_infos.0.get(&coord).unwrap().total_population),
+            &InfoTag::ProvincePopulation(coord) =>
+                format!(
+                    "Total population: {}",
+                    province_info_query.get(province_map.0.get(&coord).unwrap()).0.total_population
+                ),
             &InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             &InfoTag::SelectedProvinceName => {
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {

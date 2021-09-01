@@ -4,7 +4,7 @@ use bevy::{input::{
         ElementState,
         mouse::MouseButtonInput,
     }, prelude::*, render::{camera::{ActiveCameras, Camera, OrthographicProjection}, draw::OutsideFrustum}};
-use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, MapTile, OverlayCommand, TileTextureAtlas}, province::Provinces, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{Date, GamePaused, GameSpeed}, ui::InfoBoxMode};
+use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, MapTile, OverlayCommand, TileTextureAtlas}, province::ProvinceMap, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{Date, GamePaused, GameSpeed}, ui::InfoBoxMode};
 use crate::time::DateTimer;
 
 

@@ -2031,6 +2031,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2040,21 +2048,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "map-derive"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "map-game"
 version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_tilemap",
  "dashmap",
- "map-derive",
+ "lazy_static",
+ "macros",
  "rand",
  "rand_distr",
  "serde",

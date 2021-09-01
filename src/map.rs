@@ -1,3 +1,4 @@
+use bevy::ecs::system::Command;
 use bevy::{asset::LoadState, prelude::*, sprite::TextureAtlasBuilder};
 use bevy::app::Plugin;
 use std::{collections::{HashMap, HashSet}, convert::TryInto, fs::File, io::{Read, Write}};
@@ -6,7 +7,8 @@ use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::{input::CurrentOverlayType, province::{Province, Provinces}, stage::FinishStage, time::Date};
+use crate::province::ProvinceRef;
+use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, stage::FinishStage, time::Date};
 use crate::stage::InitStage;
 
 use crate::pops::*;
@@ -247,15 +249,38 @@ pub fn create_map_tile(
     ent.insert(MapCoordinate { x, y })
        .insert(MapTile{ tile_type })
         ;
-    if tile_type == MapTileType::Plains {
-        ent
-            .insert(MapCoordinate { x, y })
-            .insert(FarmerPopulation { alive: 100 })
-            .insert(FarmingResource { target: 1.0, current: 1.0 })
-            .insert(GoodsStorage(HashMap::new()));
-    }
+}
 
-    ent.id()
+pub struct SpawnPopCommand {
+    province: ProvinceRef,
+    language: LanguageRef,
+    culture: CultureRef,
+}
+
+impl Command for SpawnPopCommand {
+    fn write(self: Box<Self>, world: &mut World) {
+        let language = world.get::<Language>(self.language.0).unwrap();
+        let polity_ent = world
+            .spawn()
+            .insert(Polity { name: language.generate_name(2) });
+        let polity = PolityRef(polity_ent.id());
+        let pop = PopBundle {
+            base: Pop { size: 100 },
+            farming: Some(FarmingPop { good: GoodType::Wheat }),
+            province: self.province,
+            culture: self.culture,
+            polity,
+            language: PopLanguage {
+                language: self.language,
+                drift: 0.0,
+            },
+            storage: GoodStorage(HashMap::new()),
+            factors: Factors { inner: HashMap::new() },
+        };
+        world.spawn()
+            .insert_bundle(pop);
+
+    }
 }
 
 // bootstraps, sonny boy
@@ -476,7 +501,8 @@ fn show_overlay_system(
 pub fn pop_overlay_system(
     mut overlay_command: ResMut<OverlayCommand>,
     tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
-    province_infos: Res<Provinces>,
+    province_map: Res<ProvinceMap>,
+    province_query: Query<&Province>,
     current_overlay: Res<CurrentOverlayType>,
     date: Res<Date>,
 ) {
@@ -484,7 +510,7 @@ pub fn pop_overlay_system(
         let mut pop_map = HashMap::new();
         let mut max_pop = 0;
         for coord in tile_coord_query.iter() {
-            let pop = province_infos.0.get(coord).map(|pi| pi.total_population).unwrap_or(0);
+            let pop = province_query.get(*province_map.0.get(coord).unwrap()).map(|pi| pi.total_population).unwrap_or(0);
             pop_map.insert(coord, pop);
             if pop > max_pop {
                 max_pop = pop;

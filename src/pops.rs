@@ -1,18 +1,39 @@
-use bevy::{ecs::{component::Component, system::Command, world::EntityRef}, prelude::*};
+use bevy::{ecs::{component::Component, system::Command, world::EntityRef, system::SystemParam}, prelude::*};
 use rand::{Rng, distributions::Slice, thread_rng};
 use rand_distr::Uniform;
 use std::collections::HashMap;
-use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, modifier::{self, ModifierStorage, ModifierType}, province::{Province, Provinces}};
+use std::hash::Hash;
+use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, province::{Province, ProvinceMap, ProvinceRef}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
+use crate::settlement::*;
 
 pub trait GameRef {
-    fn get<T>(&self, world: &World) -> &T where T: Component;
+    type Factor: Eq + Hash;
+
+    fn entity(&self) -> Entity;
+
+    // fn get<'a, T>(&self, manager: &'a dyn EntityManager) -> &'a T where T: Component {
+    //     manager.get_component::<T>(self.entity())
+    // }
 }
 
-pub enum SettlementFactorType {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum SettlementFactor {
     CarryingCapacity,
+}
+
+impl FactorType for SettlementFactor {
+    fn base_decay(&self) -> FactorDecay {
+        match *self {
+            SettlementFactor::CarryingCapacity => FactorDecay::None,
+        }
+    }
+}
+
+pub trait FactorType {
+    fn base_decay(&self) -> FactorDecay;
 }
 
 pub enum FactorDecay {
@@ -21,9 +42,14 @@ pub enum FactorDecay {
     None,
 }
 
+pub enum PopFactor {
+
+}
+
 pub struct Factor<T> {
     ftype: T,
     amount: f32,
+    target: f32,
     decay: FactorDecay,
 }
 
@@ -31,10 +57,10 @@ impl<T> Factor<T> {
     pub fn decay(&mut self) -> f32 {
         let this_decay = match self.decay {
             FactorDecay::Linear(n) => n,
-            FactorDecay::Exponential(n) => self.amount * n,
+            FactorDecay::Exponential(n) => (self.amount - self.target) * n,
             FactorDecay::None => 0.0,
         };
-        self.amount = (self.amount - this_decay).max(0.0);
+        self.amount = (self.amount - this_decay).max(self.target);
         this_decay
     }
 
@@ -47,59 +73,82 @@ pub struct Factors<T> {
     inner: HashMap<T, Factor<T>>,
 }
 
-impl<T> Factors<T> where T: Eq + Hash {
+
+impl<T> Factors<T> where T: FactorType + Eq + Hash {
     pub fn decay(&mut self) {
-        for factor in self.0.values().iter_mut() {
+        for factor in self.inner.values_mut() {
             factor.decay();
         }
     }
 
     pub fn add(&mut self, ftype: T, amt: f32) {
-        if !self.inner.contains_key(ftype) {
-            self.inner.insert(ftype, 0.0);
+        if !self.inner.contains_key(&ftype) {
+            self.inner.insert(ftype, Factor {
+                ftype,
+                amount: 0.0,
+                target: 0.0,
+                decay: ftype.base_decay(),
+            });
         }
 
-        *self.inner.get_mut().unwrap() += amt;
+        self.inner.get_mut(&ftype).unwrap().amount += amt;
     }
 
     pub fn factor(&self, ftype: T) -> f32 {
-        self.inner.get(&ftype).unwrap_or(0.0)
+        self.inner.get(&ftype).map(|f| f.amount).unwrap_or(0.0)
     }
 }
 
-pub struct Settlement {
-    name: String,
+pub trait EntityManager<R> where R: GameRef {
+    fn get_component<T>(&self, ent: R) -> &T where T: Component;
+    fn get_factor(&self, entity: R, factor: R::Factor) -> f32;
 }
 
-#[derive(GameRef)]
-pub struct SettlementRef(pub Entity);
-
-impl SettlementRef {
-    pub fn carrying_capacity(&self, world: &World) -> f32 {
-        100.0
-    }
-
-    pub fn population(&self, world: &World) -> usize {
-        let mut total_pop = 0;
-        for pop_ref in self.get::<Pops>(world).0.iter() {
-            total_pop += pop_ref.get::<Pop>(world).size;
-        }
-        total_pop
-    }
+pub trait EntityManagerType {
+    type Ref: GameRef;
 }
+
+// #[derive(SystemParam, EntityManager)]
+// pub struct PopManager<'a> {
+//     entity_query: Query<'a, (&'static Pop, &'static FarmingPop, &'static MapCoordinate)>,
+// }
+
+#[derive(Bundle)]
+pub struct PopBundle {
+    pub base: Pop,
+    pub farming: Option<FarmingPop>,
+    pub province: ProvinceRef,
+    pub culture: CultureRef,
+    pub polity: PolityRef,
+    pub language: PopLanguage,
+    pub storage: GoodStorage,
+    pub factors: Factors<PopFactor>,
+}
+
+// #[derive(GameRef)]
+// pub struct PopRef(pub Entity);
+
+
+// pub type PopQuery<'w> = Query<'w, (&'w Pop, &'w FarmingPop, &'w MapCoordinate)>;
 
 pub struct Pop {
-    size: usize,
+    pub size: usize,
 }
 
-#[derive(GameRef)]
-pub struct PopRef(pub Entity);
+pub struct PopLanguage {
+    language: LanguageRef,
+    drift: f32,
+}
 
-pub struct Pops(pub Vec<PopRef>);
+pub struct Pops(pub Vec<Entity>);
 
 pub struct FarmingPop {
-    good: EconomicGood,
+    good: GoodType,
 }
+
+pub struct PopProvince(pub Entity);
+pub struct PopCulture(pub Entity);
+pub struct PopPolity(pub Entity);
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EconomicGood {
@@ -107,23 +156,57 @@ pub enum EconomicGood {
     Wine,
 }
 
+// #[derive(GameRef<'w>)]
+// pub struct CultureRef<'w>(pub Entity);
+
+// pub type CultureQuery<'w> = Query<'w, (&'w Culture,)>;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CultureFactor {
+
+}
+
+#[derive(GameRef)]
+pub struct CultureRef(pub Entity);
+pub struct Culture {
+    name: String,
+}
+
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PolityFactor {
+
+}
+#[derive(GameRef)]
+pub struct PolityRef(pub Entity);
+
+// pub type PolityQuery<'w> = Query<'w, (&'w Polity)>;
+
+pub struct Polity {
+    name: String,
+}
+
+
+
 pub fn harvest_system(
     world: &World,
-    pop_query: Query<(&Pop, &FarmingPop, &SettlementRef)>,
+    pm: &PopManager,
+    sm: &SettlementManager,
+    farming_pop_query: Query<(&Pop, &FarmingPop, &SettlementRef)>,
 ) {
-    for (pop, farming_pop, settlement_ref) in pop_query.iter() {
+    for (pop, farming_pop, &settlement_ref) in farming_pop_query.iter() {
         let mut farmed_amount = pop.size as f32;
-        let carrying_capacity = settlement_ref.carrying_capacity(world);
+        let carrying_capacity = sm.get_factor(settlement_ref, SettlementFactor::CarryingCapacity);
         let comfortable_limit = carrying_capacity / 2.0;
-        let pop_size = settlement_ref.population(world) as f32;
-        if pop_size > comfortable_limit {
+        let pop_size = sm.get_component::<Settlement>(settlement_ref).population;
+        if pop_size as f32 > comfortable_limit {
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
             //     pressure: (pop_size / comfortable_limit).powi(2),
             // }))
         }
-        if pop_size > carrying_capacity {
+        if pop_size as f32 > carrying_capacity {
             farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
         }
         // if random::<f32>() > 0.9 {
@@ -138,38 +221,54 @@ pub fn harvest_system(
     }
 }
 
-pub struct GoodsStorage(pub HashMap<EconomicGood, f64>);
+pub struct GoodStorage(pub HashMap<GoodType, f32>);
 
-impl GoodsStorage {
-    pub fn add_resources(&mut self, good: EconomicGood, amount: f64) {
-        if let Some(mut current_res) = self.0.get_mut(&good) {
-            *current_res += amount;
-        } else {
-            self.0.insert(good, amount);
-        }
+impl GoodStorage {
+    pub fn amount(&self, good: GoodType) -> f32 {
+        *self.0.get(&good).unwrap_or(&0.0)
     }
 
-    pub fn set_resource_factor(&mut self, good: EconomicGood, factor: f64) {
-        if let Some(mut current_res) = self.0.get_mut(&good) {
-            *current_res *= factor;
-        }
-    }
-
-    pub fn use_goods_deficit(&mut self, good: EconomicGood, amount: f64) -> Option<f64> {
-        if let Some(current_res) = self.0.get_mut(&good) {
-            *current_res -= amount;
-            if *current_res < 0.0 {
-                let amt = -*current_res;
-                *current_res = 0.0;
-                Some(amt)
+    pub fn consume(&mut self, good: GoodType, amount: f32) -> Option<f32> {
+        if let Some(mut stored) = self.0.get_mut(&good) {
+            if *stored < amount {
+                let deficit = amount - *stored;
+                *stored = 0.0;
+                Some(deficit)
             } else {
+                *stored -= amount;
                 None
             }
         } else {
-            self.0.insert(good, 0.0);
             Some(amount)
         }
     }
+
+    pub fn add(&mut self, good: GoodType, amount: f32) -> f32 {
+        if let Some(stored) = self.0.get_mut(&good) {
+            *stored += amount;
+            *stored
+        } else {
+            self.0.insert(good, amount);
+            amount
+        }
+    }
+
+    pub fn set(&mut self, good: GoodType, amount: f32) {
+        *self.0.get_mut(&good).unwrap() = amount;
+    }
+
+    // pub fn try_eat_diet(&self, diet: Diet) -> Vec<(GoodType, f32)> {
+    //     let mut bad_res = Vec::new();
+
+    //     for part in diet.0.iter() {
+    //         if self.amount(part.0) < part.1 {
+    //             bad_res.push(*part);
+    //         }
+    //     }
+
+    //     bad_res
+    // }
+    //
 }
 
 pub struct Language {
@@ -179,6 +278,8 @@ pub struct Language {
     pub middle_consonants: Vec<String>,
     pub end_consonants: Vec<String>,
 }
+
+pub struct LanguageRef(pub Entity);
 
 fn list_filter_chance(list: &Vec<String>, chance: f32) -> Vec<String> {
     list.iter()
@@ -259,13 +360,137 @@ impl Language {
     }
 }
 
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
+pub enum GoodType {
+    Wheat,
+    Barley,
+    OliveOil,
+    Fish,
+    Wine,
+    Iron,
+    Copper,
+    Tin,
+    Bronze,
+    Silver,
+    Gold,
+    Lead,
+    Salt,
+    PurpleDye,
+    Marble,
+    Wood,
+    Textiles,
+    LuxuryClothes,
+    Slaves, // ?? how to handle
+}
+
+lazy_static! {
+    pub static ref FOOD_GOODS: Vec<GoodType> = vec![Wheat, Barley, Fish, OliveOil, Salt, Wine,];
+}
+
+#[derive(PartialEq)]
+pub struct Satiety {
+    pub base: f32,
+    pub luxury: f32,
+}
+
+impl std::ops::Add for Satiety {
+    type Output = Satiety;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Satiety {
+            base: self.base + rhs.base,
+            luxury: self.luxury + rhs.luxury,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Satiety {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Satiety {
+            base: self.base + rhs.base,
+            luxury: self.luxury + rhs.luxury,
+        };
+    }
+}
+
+impl std::ops::Mul<Satiety> for f32 {
+    type Output = Satiety;
+
+    fn mul(self, rhs: Satiety) -> Self::Output {
+        Satiety {
+            base: rhs.base * self,
+            luxury: rhs.luxury * self,
+        }
+    }
+}
+
+pub enum ConsumableGoodCatagory {
+    Tier1,
+    Tier2,
+    Tier3,
+}
+
+impl GoodType {
+    pub fn base_satiety(&self) -> Satiety {
+        match *self {
+            Wheat => Satiety {
+                base: 3300.0,
+                luxury: 0.1,
+            },
+            Barley => Satiety {
+                base: 3300.0,
+                luxury: 0.0,
+            },
+            OliveOil => Satiety {
+                base: 8800.0,
+                luxury: 0.3,
+            },
+            Fish => Satiety {
+                base: 1500.0,
+                luxury: 0.2,
+            },
+            Wine => Satiety {
+                base: 500.0,
+                luxury: 1.0,
+            },
+            _ => Satiety {
+                base: 0.0,
+                luxury: 0.0,
+            },
+        }
+    }
+
+    pub fn max_consumed_monthly_per_capita(&self) -> f32 {
+        match *self {
+            Wheat => 22.5, // 3300 calories per kg at 2500 calories per day = 0.75 kg/day, I'm bad at math
+            Barley => 22.5,
+            OliveOil => 3.0,
+            Fish => 30.0, // a kg of fish a day, the life...
+            Wine => 10.0, // ~ half a bottle a day
+            _ => 0.0,
+        }
+    }
+
+    pub fn consumable_good_catagory(&self) -> Option<ConsumableGoodCatagory> {
+        match *self {
+            Wheat => Some(ConsumableGoodCatagory::Tier3),
+            Barley => Some(ConsumableGoodCatagory::Tier3),
+            OliveOil => Some(ConsumableGoodCatagory::Tier2),
+            Fish => Some(ConsumableGoodCatagory::Tier2),
+            Wine => Some(ConsumableGoodCatagory::Tier1),
+            _ => None,
+        }
+    }
+}
+
+
 pub struct PopPlugin;
 
 impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
-            // .add_system(farmer_production_system.system())
+            .add_system(harvest_system.system())
             // .add_system(pop_growth_system.system())
             // .add_system(spawn_pops.system())
             // .add_system(pop_migration_system.system())

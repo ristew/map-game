@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{map::MapCoordinate, pops::{BasePop, CountryRef, CultureRef, ReligionRef}};
+use crate::{map::MapCoordinate, pops::{PopRef}};
 use bevy::prelude::*;
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -40,7 +40,7 @@ impl ModifierList {
 #[derive(Default)]
 pub struct Modifiers {
     global: ModifierList,
-    country: HashMap<CountryRef, ModifierList>,
+    // country: HashMap<CountryRef, ModifierList>,
     province: HashMap<MapCoordinate, ModifierList>,
     culture: HashMap<CultureRef, ModifierList>,
     religion: HashMap<ReligionRef, ModifierList>,
