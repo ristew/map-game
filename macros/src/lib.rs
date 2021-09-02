@@ -48,7 +48,7 @@ pub fn entity_manager_derive(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl<'a> crate::pops::EntityManager<#ref_name> for #name<'a>  {
-            fn get_component<T>(&self, ent_ref: #ref_name) -> &T where T: bevy::ecs::component::Component {
+            fn get_component<T>(&self, ent_ref: crate::#ref_name) -> &T where T: bevy::ecs::component::Component {
                 self.entity_query.get_component::<T>(ent_ref.entity()).unwrap()
             }
             fn get_factor(&self, ent_ref: #ref_name, factor: #factor_name) -> f32 {

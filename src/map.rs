@@ -249,6 +249,7 @@ pub fn create_map_tile(
     ent.insert(MapCoordinate { x, y })
        .insert(MapTile{ tile_type })
         ;
+    ent.id()
 }
 
 pub struct SpawnPopCommand {
@@ -259,26 +260,29 @@ pub struct SpawnPopCommand {
 
 impl Command for SpawnPopCommand {
     fn write(self: Box<Self>, world: &mut World) {
-        let language = world.get::<Language>(self.language.0).unwrap();
-        let polity_ent = world
-            .spawn()
-            .insert(Polity { name: language.generate_name(2) });
-        let polity = PolityRef(polity_ent.id());
-        let pop = PopBundle {
-            base: Pop { size: 100 },
-            farming: Some(FarmingPop { good: GoodType::Wheat }),
-            province: self.province,
-            culture: self.culture,
-            polity,
-            language: PopLanguage {
-                language: self.language,
-                drift: 0.0,
-            },
-            storage: GoodStorage(HashMap::new()),
-            factors: Factors { inner: HashMap::new() },
+        let name = world.get::<Language>(self.language.0).unwrap().generate_name(2);
+        let mut polity_ent = world
+            .spawn();
+        polity_ent
+            .insert(Polity { name });
+        let bundle = {
+            let polity = PolityRef(polity_ent.id());
+            PopBundle {
+                base: Pop { size: 100 },
+                farming: Some(FarmingPop { good: GoodType::Wheat }),
+                province: self.province,
+                culture: self.culture,
+                polity,
+                language: PopLanguage {
+                    language: self.language,
+                    drift: 0.0,
+                },
+                storage: GoodStorage(HashMap::new()),
+                factors: Factors { inner: HashMap::new() },
+            }
         };
         world.spawn()
-            .insert_bundle(pop);
+            .insert_bundle(bundle);
 
     }
 }

@@ -27,13 +27,13 @@ impl FactorType for ProvinceFactor {
     }
 }
 
-#[derive(SystemParam, EntityManager)]
-pub struct ProvinceManager<'a> {
-    entity_query: Query<'a, (&'static Province, &'static Settlements, &'static MapCoordinate, &'static Factors<ProvinceFactorType>)>,
-}
+// #[derive(SystemParam, EntityManager)]
+// pub struct ProvinceManager<'a> {
+//     entity_query: Query<'a, (&'static Province, &'static Settlements, &'static MapCoordinate, &'static Factors<ProvinceFactorType>)>,
+// }
 
 fn province_setup(
-    provinces: ResMut<ProvinceMap>,
+    mut provinces: ResMut<ProvinceMap>,
     tile_query: Query<(Entity, &MapTile, &MapCoordinate)>,
     pop_query: Query<(&Pop, &MapCoordinate)>,
 ) {
@@ -83,7 +83,7 @@ impl Display for Terrain {
 
 impl Default for Terrain {
     fn default() -> Self {
-        Self::Hills,
+        Self::Hills
     }
 }
 

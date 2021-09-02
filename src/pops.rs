@@ -19,19 +19,6 @@ pub trait GameRef {
     // }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum SettlementFactor {
-    CarryingCapacity,
-}
-
-impl FactorType for SettlementFactor {
-    fn base_decay(&self) -> FactorDecay {
-        match *self {
-            SettlementFactor::CarryingCapacity => FactorDecay::None,
-        }
-    }
-}
-
 pub trait FactorType {
     fn base_decay(&self) -> FactorDecay;
 }
@@ -42,18 +29,29 @@ pub enum FactorDecay {
     None,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PopFactor {
-
+    Prominence,
+    Demand(GoodType),
 }
 
-pub struct Factor<T> {
+impl FactorType for PopFactor {
+    fn base_decay(&self) -> FactorDecay {
+        match *self {
+            PopFactor::Prominence => FactorDecay::Exponential(0.01),
+            PopFactor::Demand(good) => FactorDecay::None,
+        }
+    }
+}
+
+pub struct Factor<T> where T: FactorType {
     ftype: T,
     amount: f32,
     target: f32,
     decay: FactorDecay,
 }
 
-impl<T> Factor<T> {
+impl<T> Factor<T> where T: FactorType + Eq + Hash + Copy {
     pub fn decay(&mut self) -> f32 {
         let this_decay = match self.decay {
             FactorDecay::Linear(n) => n,
@@ -67,14 +65,23 @@ impl<T> Factor<T> {
     pub fn add(&mut self, amt: f32) {
         self.amount += amt;
     }
+
+    fn base(ftype: T) -> Self {
+        Self {
+            ftype,
+            amount: 0.0,
+            target: 0.0,
+            decay: ftype.base_decay(),
+        }
+    }
 }
 
-pub struct Factors<T> {
-    inner: HashMap<T, Factor<T>>,
+pub struct Factors<T> where T: FactorType + Eq + Hash {
+    pub inner: HashMap<T, Factor<T>>,
 }
 
 
-impl<T> Factors<T> where T: FactorType + Eq + Hash {
+impl<T> Factors<T> where T: FactorType + Eq + Hash + Copy {
     pub fn decay(&mut self) {
         for factor in self.inner.values_mut() {
             factor.decay();
@@ -125,8 +132,8 @@ pub struct PopBundle {
     pub factors: Factors<PopFactor>,
 }
 
-// #[derive(GameRef)]
-// pub struct PopRef(pub Entity);
+#[derive(GameRef)]
+pub struct PopRef(pub Entity);
 
 
 // pub type PopQuery<'w> = Query<'w, (&'w Pop, &'w FarmingPop, &'w MapCoordinate)>;
@@ -136,25 +143,19 @@ pub struct Pop {
 }
 
 pub struct PopLanguage {
-    language: LanguageRef,
-    drift: f32,
+    pub language: LanguageRef,
+    pub drift: f32,
 }
 
 pub struct Pops(pub Vec<Entity>);
 
 pub struct FarmingPop {
-    good: GoodType,
+    pub good: GoodType,
 }
 
 pub struct PopProvince(pub Entity);
 pub struct PopCulture(pub Entity);
 pub struct PopPolity(pub Entity);
-
-#[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum EconomicGood {
-    Grain,
-    Wine,
-}
 
 // #[derive(GameRef<'w>)]
 // pub struct CultureRef<'w>(pub Entity);
@@ -169,7 +170,7 @@ pub enum CultureFactor {
 #[derive(GameRef)]
 pub struct CultureRef(pub Entity);
 pub struct Culture {
-    name: String,
+    pub name: String,
 }
 
 
@@ -183,30 +184,29 @@ pub struct PolityRef(pub Entity);
 // pub type PolityQuery<'w> = Query<'w, (&'w Polity)>;
 
 pub struct Polity {
-    name: String,
+    pub name: String,
 }
 
 
 
 pub fn harvest_system(
-    world: &World,
-    pm: &PopManager,
-    sm: &SettlementManager,
     farming_pop_query: Query<(&Pop, &FarmingPop, &SettlementRef)>,
+    settlement: Query<&Settlement>,
+    settlement_factors: Query<&Factors<SettlementFactor>>,
 ) {
     for (pop, farming_pop, &settlement_ref) in farming_pop_query.iter() {
         let mut farmed_amount = pop.size as f32;
-        let carrying_capacity = sm.get_factor(settlement_ref, SettlementFactor::CarryingCapacity);
+        let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SettlementFactor::CarryingCapacity);
         let comfortable_limit = carrying_capacity / 2.0;
-        let pop_size = sm.get_component::<Settlement>(settlement_ref).population;
-        if pop_size as f32 > comfortable_limit {
+        let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
+        if settlement_size as f32 > comfortable_limit {
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
             //     pressure: (pop_size / comfortable_limit).powi(2),
             // }))
         }
-        if pop_size as f32 > carrying_capacity {
+        if settlement_size as f32 > carrying_capacity {
             farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
         }
         // if random::<f32>() > 0.9 {
@@ -383,6 +383,7 @@ pub enum GoodType {
     Slaves, // ?? how to handle
 }
 
+use GoodType::*;
 lazy_static! {
     pub static ref FOOD_GOODS: Vec<GoodType> = vec![Wheat, Barley, Fish, OliveOil, Salt, Wine,];
 }

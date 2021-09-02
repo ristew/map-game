@@ -2,7 +2,7 @@ use bevy::{
     prelude::*,
 };
 use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
-use crate::{province::ProvinceMap, time::{GamePaused, GameSpeed}};
+use crate::{province::{Province, ProvinceMap}, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 
 use super::tag::*;
@@ -452,7 +452,7 @@ pub fn info_tag_system(
     mut info_tag_query: Query<(&InfoTag, &mut Text)>,
     selected_query: Query<(&MapCoordinate, &MapTile, &Selected)>,
     map_editor_query: Query<&MapEditor>,
-    province_info_query: Query<(&Province)>,
+    province_info_query: Query<&Province>,
     province_map: Res<ProvinceMap>,
     date: Res<Date>,
     game_speed: Res<GameSpeed>,
@@ -463,7 +463,7 @@ pub fn info_tag_system(
             &InfoTag::ProvincePopulation(coord) =>
                 format!(
                     "Total population: {}",
-                    province_info_query.get(province_map.0.get(&coord).unwrap()).0.total_population
+                    province_info_query.get(*province_map.0.get(&coord).unwrap()).unwrap().total_population
                 ),
             &InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             &InfoTag::SelectedProvinceName => {
@@ -476,7 +476,7 @@ pub fn info_tag_system(
             &InfoTag::SelectedProvincePopulation => {
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     // monads and strife
-                    format!("population: {:?}", province_infos.0.get(&coord).map(|pinfo| pinfo.total_population).unwrap_or(0))
+                    format!("population: {:?}", province_info_query.get(*province_map.0.get(&coord).unwrap()).map(|province| province.total_population).unwrap_or(0))
                 } else {
                     "".to_string()
                 }
@@ -487,11 +487,11 @@ pub fn info_tag_system(
                 if !date.is_month {
                     continue;
                 }
-                let mut pop = 0;
-                for pinfo in province_infos.0.iter() {
-                    pop += pinfo.total_population;
+                let mut world_pop = 0;
+                for province in province_info_query.iter() {
+                    world_pop += province.total_population;
                 }
-                format!("total population: {}", pop)
+                format!("total population: {}", world_pop)
             }
             t => format!("{:?}", t),
         };
@@ -581,7 +581,7 @@ impl Plugin for UiPlugin {
             .add_startup_system(setup_ui_assets.system())
             .add_startup_stage("ui_setup", ui_setup)
             .insert_resource(InfoBoxMode::ProvinceInfoMode)
-            .init_resource::<SelectModifier>()
+            // .init_resource::<SelectModifier>()
             .add_system(info_tag_system.system())
             .add_system(change_button_system.system())
             .add_system(info_box_system.system())

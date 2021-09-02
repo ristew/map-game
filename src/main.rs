@@ -33,6 +33,8 @@ use camera::*;
 use time::TimePlugin;
 use stage::*;
 
+pub use crate::{pops::PopRef, settlement::SettlementRef};
+
 pub fn setup_assets(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
