@@ -6,14 +6,15 @@ use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
-use rand::thread_rng;
-use crate::province::ProvinceRef;
+use rand::{random, thread_rng};
+use crate::probability::individual_event;
 use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, stage::FinishStage, time::Date};
 use crate::stage::InitStage;
 
 use crate::pops::*;
 use crate::constant::*;
 use crate::save::*;
+use crate::province::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct MapCoordinate {
@@ -240,16 +241,63 @@ pub fn create_map_tile(
     tile_type: MapTileType
 ) -> Entity {
     let tile_material = tile_type.sprite();
-    let mut ent = commands
-        .spawn_bundle(SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle.0.as_weak(),
-            sprite: TextureAtlasSprite::new(tile_material as u32),
-            ..Default::default()
-        });
-    ent.insert(MapCoordinate { x, y })
-       .insert(MapTile{ tile_type })
-        ;
-    ent.id()
+    let province_ent = {
+        let mut ent = commands
+            .spawn_bundle(SpriteSheetBundle {
+                texture_atlas: texture_atlas_handle.0.as_weak(),
+                sprite: TextureAtlasSprite::new(tile_material as u32),
+                ..Default::default()
+            });
+        ent
+            .insert(MapCoordinate { x, y })
+            .insert(MapTile{ tile_type })
+            .insert(Province {
+                total_population: 0,
+                fertility: 30.0,
+            })
+            .insert(ProvincePops(Vec::new()))
+            ;
+        ent.id()
+    };
+
+    if individual_event(0.1) {
+        commands.add(SpawnCultureCommand {
+            province: ProvinceRef(province_ent),
+        })
+    }
+    province_ent
+}
+
+pub struct SpawnCultureCommand {
+    province: ProvinceRef,
+}
+
+impl Command for SpawnCultureCommand {
+    fn write(self: Box<Self>, world: &mut World) {
+        let language = Language::new();
+        let name = language.generate_name(2);
+        let language_ent = {
+            let mut language_builder = world.spawn();
+            language_builder
+                .insert(language);
+            language_builder.id()
+        };
+        let culture_ent = {
+            let mut culture_builder = world.spawn();
+            culture_builder
+                .insert(Culture {
+                    name,
+                });
+            culture_builder.id()
+        };
+        let spawn_pop_command = SpawnPopCommand {
+            province: self.province,
+            language: LanguageRef(language_ent),
+            culture: CultureRef(culture_ent),
+        };
+
+        Box::new(spawn_pop_command).write(world);
+    }
 }
 
 pub struct SpawnPopCommand {
@@ -283,7 +331,6 @@ impl Command for SpawnPopCommand {
         };
         world.spawn()
             .insert_bundle(bundle);
-
     }
 }
 
@@ -394,38 +441,54 @@ fn build_world(
         let entities: Vec<MapEntitySaveData> = serde_json::from_str(&contents).unwrap();
         // let mut tiles = Vec::new();
         for esd in &entities {
-            let mut ecmds = commands.spawn();
-            macro_rules! load_component {
-                ( $name:ident ) => {
-                    if let Some(c) = esd.$name {
-                        ecmds.insert(c);
+            let province_ent = {
+                let mut ecmds = commands.spawn();
+                macro_rules! load_component {
+                    ( $name:ident ) => {
+                        if let Some(c) = esd.$name {
+                            ecmds.insert(c);
+                        }
                     }
                 }
+                if let Some(map_tile) = esd.map_tile {
+                    // let tile_material = map_tile.tile_type.sprite();
+                    // ecmds.insert_bundle(SpriteSheetBundle {
+                    //     texture_atlas: texture_atlas_handle.0.as_weak(),
+                    //     sprite: tile_material,
+                    //     ..Default::default()
+                    // });
+                    hex_map.0.insert(esd.map_coordinate.unwrap(), Arc::new(ecmds.id()));
+                    let point = esd.map_coordinate.unwrap().point3();
+                    map.insert_tile(Tile {
+                        point,
+                        sprite_index: *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap(),
+                        ..Default::default()
+                    });
+                    map.spawn_chunk_containing_point(point).unwrap();
+                }
+                load_component!(map_coordinate);
+                load_component!(map_tile);
+                ecmds
+                    .insert(Province {
+                        total_population: 0,
+                        fertility: 30.0,
+                    })
+                    .insert(ProvincePops(Vec::new()));
+                ecmds.id()
+            };
+            if individual_event(0.1) {
+                commands.add(SpawnCultureCommand {
+                    province: ProvinceRef(province_ent),
+                })
             }
-            if let Some(map_tile) = esd.map_tile {
-                // let tile_material = map_tile.tile_type.sprite();
-                // ecmds.insert_bundle(SpriteSheetBundle {
-                //     texture_atlas: texture_atlas_handle.0.as_weak(),
-                //     sprite: tile_material,
-                //     ..Default::default()
-                // });
-                hex_map.0.insert(esd.map_coordinate.unwrap(), Arc::new(ecmds.id()));
-                let point = esd.map_coordinate.unwrap().point3();
-                map.insert_tile(Tile {
-                    point,
-                    sprite_index: *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap(),
-                    ..Default::default()
-                });
-                map.spawn_chunk_containing_point(point).unwrap();
-            }
-            load_component!(map_coordinate);
-            load_component!(map_tile);
         }
         // for chunk in &chunks {
         //     map.spawn_chunk(chunk).unwrap();
         // }
         // map.insert_tiles(tiles).unwrap();
+        commands.add(ResetProvinceMap);
         load_map.0 = None;
+        println!("world built");
     }
 }
 

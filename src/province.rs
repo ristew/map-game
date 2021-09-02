@@ -1,12 +1,13 @@
 use std::{cell::RefCell, collections::HashMap, ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
 use std::fmt::Display;
 
-use bevy::{prelude::*, ecs::system::SystemParam};
+use bevy::{ecs::system::{Command, SystemParam}, prelude::*};
 use crate::{map::*, pops::*, settlement::Settlements, stage::*};
 
-#[derive(GameRef)]
+#[derive(GameRef, Debug, Copy, Clone)]
 pub struct ProvinceRef(pub Entity);
 
+#[derive(Debug)]
 pub struct Province {
     pub total_population: usize,
     pub fertility: f64,
@@ -32,27 +33,36 @@ impl FactorType for ProvinceFactor {
 //     entity_query: Query<'a, (&'static Province, &'static Settlements, &'static MapCoordinate, &'static Factors<ProvinceFactorType>)>,
 // }
 
-fn province_setup(
-    mut provinces: ResMut<ProvinceMap>,
-    tile_query: Query<(Entity, &MapTile, &MapCoordinate)>,
-    pop_query: Query<(&Pop, &MapCoordinate)>,
-) {
-    for (ent, tile, &coord) in tile_query.iter() {
-        provinces.0.insert(coord, ent);
+pub struct ResetProvinceMap;
+
+impl Command for ResetProvinceMap {
+    fn write(self: Box<Self>, world: &mut World) {
+        let mut inner = HashMap::new();
+        let mut query = world.query::<(Entity, &Province, &MapCoordinate)>();
+        for (ent, _, &coord) in query.iter(&world) {
+            inner.insert(coord, ent);
+        }
+        let mut provinces = world.get_resource_mut::<ProvinceMap>().unwrap();
+
+        provinces.0 = inner;
     }
 }
 
 fn province_pop_tracking_system(
     mut commands: Commands,
-    pop_query: Query<(Entity, &Pop, &PopProvince)>,
+    load_map: Res<LoadMap>,
+    pop_query: Query<(Entity, &Pop, &ProvinceRef)>,
     mut province_query: Query<(&mut Province, &mut ProvincePops)>,
 ) {
+    if load_map.0 != None {
+        return;
+    }
     for (mut province, mut pops) in province_query.iter_mut() {
         province.total_population = 0;
         pops.0 = vec![];
     }
-    for (ent, pop, province_ref) in pop_query.iter() {
-        let (mut province, mut pops) = province_query.get_mut(province_ref.0).unwrap();
+    for (ent, pop, pop_province) in pop_query.iter() {
+        let (mut province, mut pops) = province_query.get_mut(pop_province.entity()).unwrap();
         province.total_population += pop.size;
         pops.0.push(ent);
     }
@@ -167,7 +177,6 @@ impl Plugin for ProvincePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_startup_stage_after(InitStage::LoadPops, InitStage::LoadProvinces, SystemStage::single_threaded())
-            .add_startup_system_to_stage(InitStage::LoadProvinces, province_setup.system())
             .add_system(province_pop_tracking_system.system())
             // .insert_resource(Provinces {
             //     last_id: 0,
