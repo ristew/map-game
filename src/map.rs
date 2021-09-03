@@ -1,6 +1,7 @@
 use bevy::ecs::system::Command;
 use bevy::{asset::LoadState, prelude::*, sprite::TextureAtlasBuilder};
 use bevy::app::Plugin;
+use std::collections::VecDeque;
 use std::{collections::{HashMap, HashSet}, convert::TryInto, fs::File, io::{Read, Write}};
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
@@ -327,6 +328,7 @@ impl Command for SpawnPopCommand {
                 },
                 storage: GoodStorage(HashMap::new()),
                 factors: Factors { inner: HashMap::new() },
+                kid_buffer: KidBuffer(VecDeque::new()),
             }
         };
         world.spawn()

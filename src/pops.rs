@@ -1,9 +1,9 @@
 use bevy::{ecs::{component::Component, system::Command, world::EntityRef, system::SystemParam}, prelude::*};
 use rand::{Rng, distributions::Slice, thread_rng};
 use rand_distr::Uniform;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
-use crate::{map::{HexMap, LoadMap, MapCoordinate, MapTile, MapTileType}, province::{Province, ProvinceMap, ProvinceRef}};
+use crate::{map::*, province::{Province, ProvinceMap, ProvinceRef}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
@@ -130,6 +130,7 @@ pub struct PopBundle {
     pub language: PopLanguage,
     pub storage: GoodStorage,
     pub factors: Factors<PopFactor>,
+    pub kid_buffer: KidBuffer,
 }
 
 #[derive(GameRef)]
@@ -157,6 +158,43 @@ pub struct PopProvince(pub Entity);
 pub struct PopCulture(pub Entity);
 pub struct PopPolity(pub Entity);
 
+
+#[derive(Debug)]
+pub struct KidBuffer(pub VecDeque<usize>);
+
+impl KidBuffer {
+    pub fn new() -> Self {
+        Self(VecDeque::new())
+    }
+
+    pub fn size(&self) -> usize {
+        self.0.iter().fold(0, |acc, e| acc + e)
+    }
+
+    pub fn spawn(&mut self, babies: usize) -> usize {
+        // println!("spawn babies {}", babies);
+        self.0.push_front(babies);
+        // println!("{:?}", self);
+        if self.0.len() > 12 {
+            self.0.pop_back().unwrap()
+        } else {
+            babies
+        }
+    }
+
+    pub fn starve(&mut self) -> usize {
+        let cohort = sample(3.0).abs().min(12.0) as usize;
+        if self.0.len() > cohort {
+            let cohort_size = self.0[cohort];
+            let dead_kids = positive_isample(cohort_size / 20 + 2, cohort_size / 5 + 1);
+            // println!("cohort {}, size {}, dead {}", cohort, cohort_size, dead_kids);
+            self.0[cohort] = (cohort_size - dead_kids).max(0);
+            cohort_size - self.0[cohort]
+        } else {
+            0
+        }
+    }
+}
 // #[derive(GameRef<'w>)]
 // pub struct CultureRef<'w>(pub Entity);
 
@@ -188,6 +226,24 @@ pub struct Polity {
 }
 
 
+pub fn growth_system(
+    date: Res<Date>,
+    mut pop_query: Query<(&mut Pop, &mut KidBuffer)>,
+) {
+
+    if date.is_year {
+        for (mut pop, mut kb) in pop_query.iter_mut() {
+            let babies = positive_isample(2, pop.size * 4 / 100);
+            let deaths = positive_isample(2, pop.size / 50);
+
+            let adults = kb.spawn(babies);
+            pop.size += adults - deaths;
+            if pop.size <= 0 {
+                println!("dead pop!!");
+            }
+        }
+    }
+}
 
 pub fn harvest_system(
     farming_pop_query: Query<(&Pop, &FarmingPop, &SettlementRef)>,
@@ -492,6 +548,7 @@ impl Plugin for PopPlugin {
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
             .add_system(harvest_system.system())
+            .add_system(growth_system.system())
             // .add_system(pop_growth_system.system())
             // .add_system(spawn_pops.system())
             // .add_system(pop_migration_system.system())
