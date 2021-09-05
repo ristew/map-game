@@ -1,5 +1,5 @@
 use bevy::{ecs::{component::Component, system::Command, world::EntityRef, system::SystemParam}, prelude::*};
-use rand::{Rng, distributions::Slice, thread_rng};
+use rand::{Rng, distributions::Slice, random, thread_rng};
 use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
@@ -265,10 +265,10 @@ pub fn harvest_system(
         if settlement_size as f32 > carrying_capacity {
             farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
         }
-        // if random::<f32>() > 0.9 {
-        //     // println!("failed harvest! halving farmed goods");
-        //     farmed_amount *= 0.7;
-        // }
+        if random::<f32>() > 0.9 {
+            // println!("failed harvest! halving farmed goods");
+            farmed_amount *= 0.7;
+        }
         // world.add_command(Box::new(SetGoodsCommand {
         //     good_type: farmed_good,
         //     amount: farmed_amount * 300.0,
@@ -545,10 +545,12 @@ pub struct PopPlugin;
 
 impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
+        let pop_systems = SystemSet::new()
+            .with_system(harvest_system.system())
+            .with_system(growth_system.system());
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
-            .add_system(harvest_system.system())
-            .add_system(growth_system.system())
+            .add_system_set_to_stage(DayStage::Main, pop_systems)
             // .add_system(pop_growth_system.system())
             // .add_system(spawn_pops.system())
             // .add_system(pop_migration_system.system())

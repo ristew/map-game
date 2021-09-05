@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::tag::DateDisplay;
+use crate::{stage::DayStage, tag::DateDisplay};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeEvent {
@@ -82,12 +82,10 @@ fn time_system(
     date.is_week = false;
     date.is_month = false;
     date.is_year = false;
-    if !game_paused.0 && date_timer.0.tick(time.delta()).just_finished() {
-        date.next_day();
+    date.next_day();
 
-        for (_, mut text) in date_texts.iter_mut() {
-            text.sections[0].value = format!("year {}, {}/{}", date.year, date.month, date.day);
-        }
+    for (_, mut text) in date_texts.iter_mut() {
+        text.sections[0].value = format!("year {}, {}/{}", date.year, date.month, date.day);
     }
 }
 
@@ -107,6 +105,6 @@ impl Plugin for TimePlugin {
             .insert_resource(GameSpeed(5))
             .insert_resource(GamePaused(false))
             .add_event::<TimeEvent>()
-            .add_system(time_system.system());
+            .add_system_to_stage(DayStage::Init, time_system.system());
     }
 }

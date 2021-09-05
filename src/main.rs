@@ -18,7 +18,7 @@ pub mod province;
 pub mod stage;
 pub mod settlement;
 
-use bevy::{diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
+use bevy::{core::FixedTimestep, diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
 use bevy_tilemap::prelude::TilemapDefaultPlugins;
 use province::ProvincePlugin;
 // fuck yo namespace
@@ -52,6 +52,28 @@ fn main() {
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_assets.system())
         // .add_system(camera_zoom_system.system())
         .add_system(map_editor_painting_system.system())
+        .add_stage_after(
+            CoreStage::Update,
+            DayStage::Init,
+            SystemStage::parallel()
+                .with_run_criteria(
+                    FixedTimestep::step(0.005)
+                        // labels are optional. they provide a way to access the current
+                        // FixedTimestep state from within a system
+                        .with_label(DAY_TIMESTEP),
+                )
+        )
+        .add_stage_after(
+            DayStage::Init,
+            DayStage::Main,
+            SystemStage::parallel()
+                .with_run_criteria(
+                    FixedTimestep::step(0.005)
+                        // labels are optional. they provide a way to access the current
+                        // FixedTimestep state from within a system
+                        .with_label(DAY_TIMESTEP),
+                )
+        )
         // .insert_resource(SpriteSettings { frustum_culling_enabled: true })
         .add_plugins(DefaultPlugins)
         .add_plugins(TilemapDefaultPlugins)

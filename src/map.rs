@@ -9,8 +9,8 @@ use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::{random, thread_rng};
 use crate::probability::individual_event;
-use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, stage::FinishStage, time::Date};
-use crate::stage::InitStage;
+use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, time::Date};
+use crate::stage::{DayStage, InitStage};
 
 use crate::pops::*;
 use crate::constant::*;
@@ -617,12 +617,11 @@ impl Plugin for MapPlugin {
             .insert_resource(HexMap(HashMap::new()))
             .insert_resource(OverlayCommand::Clear)
             .insert_resource(CurrentOverlayType::None)
-            .add_stage_after(CoreStage::PostUpdate, FinishStage::Main, SystemStage::single_threaded())
             .add_system(load_tile_map_system.system())
             .add_system(build_world.system())
             .add_system(pop_overlay_system.system())
             .add_system(show_overlay_system.system())
-            .add_system_to_stage(FinishStage::Main, map_tile_type_changed_system.system())
+            .add_system_to_stage(DayStage::Main, map_tile_type_changed_system.system())
             .add_system(position_translation.system());
     }
 }

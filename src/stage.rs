@@ -8,6 +8,7 @@ pub enum InitStage {
 }
 
 #[derive(StageLabel, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum FinishStage {
-    Main
+pub enum DayStage {
+    Init,
+    Main,
 }
