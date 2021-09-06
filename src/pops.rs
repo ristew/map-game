@@ -1,9 +1,9 @@
-use bevy::{ecs::{component::Component, system::Command, world::EntityRef, system::SystemParam}, prelude::*};
-use rand::{Rng, distributions::Slice, random, thread_rng};
+use bevy::{core::FixedTimestep, ecs::{component::Component, system::Command, world::EntityRef, system::SystemParam}, prelude::*};
+use rand::{Rng, distributions::Slice, prelude::SliceRandom, random, thread_rng};
 use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
-use crate::{map::*, province::{Province, ProvinceMap, ProvinceRef}};
+use crate::{constant::DAY_TIMESTEP, map::*, province::{Province, ProvinceMap, ProvinceRef}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
@@ -230,7 +230,7 @@ pub fn growth_system(
     date: Res<Date>,
     mut pop_query: Query<(&mut Pop, &mut KidBuffer)>,
 ) {
-
+    println!("growth_system {:?}", *date);
     if date.is_year {
         for (mut pop, mut kb) in pop_query.iter_mut() {
             let babies = positive_isample(2, pop.size * 4 / 100);
@@ -338,14 +338,13 @@ pub struct Language {
 pub struct LanguageRef(pub Entity);
 
 fn list_filter_chance(list: &Vec<String>, chance: f32) -> Vec<String> {
-    list.iter()
-        .filter_map(|v| {
-            if rand::random::<f32>() < chance {
-                Some(v.clone())
-            } else {
-                None
-            }
-        })
+    let target_len = (list.len() as f32 * chance).round() as usize;
+    let mut targets = list.clone();
+    targets.shuffle(&mut thread_rng());
+    targets
+        .iter()
+        .take(target_len)
+        .map(|t| t.to_owned())
         .collect::<Vec<String>>()
 }
 
@@ -547,7 +546,14 @@ impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         let pop_systems = SystemSet::new()
             .with_system(harvest_system.system())
-            .with_system(growth_system.system());
+            .with_system(growth_system.system())
+            // .with_run_criteria(
+            //     FixedTimestep::step(0.0001)
+            //         // labels are optional. they provide a way to access the current
+            //         // FixedTimestep state from within a system
+            //         .with_label(DAY_TIMESTEP),
+            // )
+            .with_run_criteria(day_run_criteria_system.system());
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
             .add_system_set_to_stage(DayStage::Main, pop_systems)

@@ -30,7 +30,7 @@ use pops::*;
 use save::*;
 use input::*;
 use camera::*;
-use time::TimePlugin;
+use time::{TimePlugin, day_run_criteria_system};
 use stage::*;
 
 pub use crate::{pops::PopRef, settlement::SettlementRef};
@@ -57,7 +57,7 @@ fn main() {
             DayStage::Init,
             SystemStage::parallel()
                 .with_run_criteria(
-                    FixedTimestep::step(0.005)
+                    FixedTimestep::step(0.0001)
                         // labels are optional. they provide a way to access the current
                         // FixedTimestep state from within a system
                         .with_label(DAY_TIMESTEP),
@@ -68,7 +68,7 @@ fn main() {
             DayStage::Main,
             SystemStage::parallel()
                 .with_run_criteria(
-                    FixedTimestep::step(0.005)
+                    FixedTimestep::step(0.0001)
                         // labels are optional. they provide a way to access the current
                         // FixedTimestep state from within a system
                         .with_label(DAY_TIMESTEP),
@@ -80,10 +80,10 @@ fn main() {
         .add_plugin(InputPlugin)
         .add_plugin(UiPlugin)
         .add_plugin(CameraPlugin)
+        .add_plugin(TimePlugin)
         .add_plugin(MapPlugin)
         .add_plugin(PopPlugin)
         .add_plugin(ProvincePlugin)
-        .add_plugin(TimePlugin)
         .add_plugin(DiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();

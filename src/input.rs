@@ -5,7 +5,6 @@ use bevy::{input::{
         mouse::MouseButtonInput,
     }, prelude::*, render::{camera::{ActiveCameras, Camera, OrthographicProjection}, draw::OutsideFrustum}};
 use crate::{camera::ZoomLevel, map::{HexMap, MapCoordinate, MapTile, OverlayCommand, TileTextureAtlas}, province::ProvinceMap, tag::{HoldPressed, MapCamera, SelectOutline, Selected, UiContainer}, time::{Date, GamePaused, GameSpeed}, ui::InfoBoxMode};
-use crate::time::DateTimer;
 
 
 pub fn tile_hold_pressed_system(
@@ -196,7 +195,6 @@ pub fn overlay_input_system(
 
 pub fn change_speed_system(
     keyboard_input: Res<Input<KeyCode>>,
-    mut date_timer: ResMut<DateTimer>,
     mut game_speed: ResMut<GameSpeed>,
     mut game_paused: ResMut<GamePaused>,
 ) {
@@ -209,8 +207,6 @@ pub fn change_speed_system(
     if keyboard_input.just_pressed(KeyCode::Space) {
         game_paused.0 = !game_paused.0;
     }
-    let mut duration = Duration::from_millis(2u64.pow(11 - game_speed.0 as u32));
-    date_timer.0.set_duration(duration);
 }
 
 pub struct InputPlugin;

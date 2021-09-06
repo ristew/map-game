@@ -1,6 +1,6 @@
-use bevy::prelude::*;
+use bevy::{core::FixedTimesteps, ecs::{schedule::ShouldRun, system::Command}, prelude::*};
 
-use crate::{stage::DayStage, tag::DateDisplay};
+use crate::{constant::DAY_TIMESTEP, stage::DayStage, tag::DateDisplay};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeEvent {
@@ -67,25 +67,45 @@ pub struct DayOfYear {
     pub month: usize,
 }
 
-pub struct DateTimer(pub Timer);
+pub struct DatesPerSecond(pub f32);
 pub struct GameSpeed(pub usize);
 pub struct GamePaused(pub bool);
 
 fn time_system(
+    mut frame: Local<usize>,
     mut date: ResMut<Date>,
-    mut date_timer: ResMut<DateTimer>,
     time: Res<Time>,
+    game_speed: Res<GameSpeed>,
     mut date_texts: Query<(&DateDisplay, &mut Text)>,
     game_paused: Res<GamePaused>,
 ) {
+    *frame = *frame + 1;
     date.is_day = false;
     date.is_week = false;
     date.is_month = false;
     date.is_year = false;
-    date.next_day();
+    println!("{}", *frame);
+    if !game_paused.0 && *frame % 2usize.pow(11 - game_speed.0 as u32) == 0 {
+        date.next_day();
+        println!("next day! {:?}", *date);
 
-    for (_, mut text) in date_texts.iter_mut() {
-        text.sections[0].value = format!("year {}, {}/{}", date.year, date.month, date.day);
+
+        for (_, mut text) in date_texts.iter_mut() {
+            text.sections[0].value = format!("year {}, {}/{}", date.year, date.month, date.day);
+        }
+    // } else {
+    //     println!("not next day! {:?}", *date);
+    }
+}
+
+pub fn day_run_criteria_system(
+    day: Res<Date>,
+) -> ShouldRun {
+    println!("day_run_criteria_system?? {:?}", *day);
+    if day.is_day {
+        ShouldRun::Yes
+    } else {
+        ShouldRun::No
     }
 }
 
@@ -101,10 +121,9 @@ impl Plugin for TimePlugin {
                 year: 1,
                 ..Default::default()
             })
-            .insert_resource(DateTimer(Timer::from_seconds(0.02, true)))
             .insert_resource(GameSpeed(5))
             .insert_resource(GamePaused(false))
             .add_event::<TimeEvent>()
-            .add_system_to_stage(DayStage::Init, time_system.system());
+            .add_system_to_stage(DayStage::Main, time_system.system());
     }
 }
