@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 extern crate bevy;
 #[macro_use]
 extern crate macros;
@@ -17,6 +19,7 @@ pub mod time;
 pub mod province;
 pub mod stage;
 pub mod settlement;
+pub mod factor;
 
 use bevy::{core::FixedTimestep, diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
 use bevy_tilemap::prelude::TilemapDefaultPlugins;
@@ -56,15 +59,15 @@ fn main() {
             CoreStage::Update,
             DayStage::Init,
             SystemStage::parallel()
-                .with_run_criteria(
-                    FixedTimestep::step(0.0001)
-                        // labels are optional. they provide a way to access the current
-                        // FixedTimestep state from within a system
-                        .with_label(DAY_TIMESTEP),
-                )
+                // .with_run_criteria(
+                //     FixedTimestep::step(0.0001)
+                //         // labels are optional. they provide a way to access the current
+                //         // FixedTimestep state from within a system
+                //         .with_label(DAY_TIMESTEP),
+                // )
         )
         .add_stage_after(
-            DayStage::Init,
+            CoreStage::Update,
             DayStage::Main,
             SystemStage::parallel()
                 .with_run_criteria(

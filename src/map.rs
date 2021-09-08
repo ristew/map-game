@@ -9,10 +9,12 @@ use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::{random, thread_rng};
 use crate::probability::individual_event;
+use crate::settlement::{Settlement, SettlementBundle, SettlementPops};
 use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, time::Date};
 use crate::stage::{DayStage, InitStage};
+use crate::factor::Factors;
 
-use crate::pops::*;
+use crate::{SettlementRef, pops::*};
 use crate::constant::*;
 use crate::save::*;
 use crate::province::*;
@@ -291,7 +293,7 @@ impl Command for SpawnCultureCommand {
                 });
             culture_builder.id()
         };
-        let spawn_pop_command = SpawnPopCommand {
+        let spawn_pop_command = SpawnSettlementCommand {
             province: self.province,
             language: LanguageRef(language_ent),
             culture: CultureRef(culture_ent),
@@ -301,8 +303,39 @@ impl Command for SpawnCultureCommand {
     }
 }
 
+pub struct SpawnSettlementCommand {
+    province: ProvinceRef,
+    language: LanguageRef,
+    culture: CultureRef,
+}
+
+impl Command for SpawnSettlementCommand {
+    fn write(self: Box<Self>, world: &mut World) {
+        let name = world.get::<Language>(self.language.0).unwrap().generate_name(2);
+        let settlement = SettlementRef({
+            world.spawn()
+                .insert_bundle(SettlementBundle {
+                    info: Settlement {
+                        name,
+                        population: 0,
+                    },
+                    pops: SettlementPops(Vec::new()),
+                    factors: Factors::new(),
+                })
+                .id()
+        });
+        Box::new(SpawnPopCommand {
+            province: self.province,
+            settlement,
+            language: self.language,
+            culture: self.culture,
+        }).write(world);
+    }
+}
+
 pub struct SpawnPopCommand {
     province: ProvinceRef,
+    settlement: SettlementRef,
     language: LanguageRef,
     culture: CultureRef,
 }
@@ -310,29 +343,35 @@ pub struct SpawnPopCommand {
 impl Command for SpawnPopCommand {
     fn write(self: Box<Self>, world: &mut World) {
         let name = world.get::<Language>(self.language.0).unwrap().generate_name(2);
-        let mut polity_ent = world
-            .spawn();
-        polity_ent
-            .insert(Polity { name });
-        let bundle = {
-            let polity = PolityRef(polity_ent.id());
-            PopBundle {
-                base: Pop { size: 100 },
-                farming: Some(FarmingPop { good: GoodType::Wheat }),
-                province: self.province,
-                culture: self.culture,
-                polity,
-                language: PopLanguage {
-                    language: self.language,
-                    drift: 0.0,
-                },
-                storage: GoodStorage(HashMap::new()),
-                factors: Factors { inner: HashMap::new() },
-                kid_buffer: KidBuffer(VecDeque::new()),
-            }
+        let mut polity_ent = {
+            world
+                .spawn()
+                .insert(Polity { name })
+                .id()
         };
-        world.spawn()
-            .insert_bundle(bundle);
+        let pop_ent = {
+            let bundle = {
+                let polity = PolityRef(polity_ent);
+                PopBundle {
+                    base: Pop { size: 100 },
+                    farming: Some(FarmingPop { good: GoodType::Wheat }),
+                    province: self.province,
+                    culture: self.culture,
+                    polity,
+                    language: PopLanguage {
+                        language: self.language,
+                        drift: 0.0,
+                    },
+                    storage: GoodStorage(HashMap::new()),
+                    factors: Factors { inner: HashMap::new() },
+                    kid_buffer: KidBuffer(VecDeque::new()),
+                }
+            };
+            world.spawn()
+                .insert_bundle(bundle)
+                .id()
+        };
+        self.settlement.add_pop(world, PopRef(pop_ent));
     }
 }
 

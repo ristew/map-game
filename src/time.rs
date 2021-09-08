@@ -1,6 +1,6 @@
 use bevy::{core::FixedTimesteps, ecs::{schedule::ShouldRun, system::Command}, prelude::*};
 
-use crate::{constant::DAY_TIMESTEP, stage::DayStage, tag::DateDisplay};
+use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, stage::DayStage, tag::DateDisplay};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeEvent {
@@ -24,6 +24,9 @@ pub struct Date {
 
 impl Date {
     pub fn next_day(&mut self) {
+        self.is_week = false;
+        self.is_month = false;
+        self.is_year = false;
         self.is_day = true;
         self.day += 1;
         self.abs_day += 1;
@@ -61,6 +64,12 @@ impl Date {
     }
 }
 
+impl std::fmt::Display for Date {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}/{}/{}", self.month, self.day, self.year))
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct DayOfYear {
     pub day: usize,
@@ -84,14 +93,16 @@ fn time_system(
     date.is_week = false;
     date.is_month = false;
     date.is_year = false;
-    println!("{}", *frame);
+    // println!("{}", *frame);
     if !game_paused.0 && *frame % 2usize.pow(11 - game_speed.0 as u32) == 0 {
         date.next_day();
-        println!("next day! {:?}", *date);
+        if date.is_year {
+            println!("next year! {}", *date);
+        }
 
 
         for (_, mut text) in date_texts.iter_mut() {
-            text.sections[0].value = format!("year {}, {}/{}", date.year, date.month, date.day);
+            text.sections[0].value = format!("{}", *date);
         }
     // } else {
     //     println!("not next day! {:?}", *date);
@@ -101,7 +112,7 @@ fn time_system(
 pub fn day_run_criteria_system(
     day: Res<Date>,
 ) -> ShouldRun {
-    println!("day_run_criteria_system?? {:?}", *day);
+    println!("day_run_criteria_system?? {}", *day);
     if day.is_day {
         ShouldRun::Yes
     } else {
@@ -122,8 +133,8 @@ impl Plugin for TimePlugin {
                 ..Default::default()
             })
             .insert_resource(GameSpeed(5))
-            .insert_resource(GamePaused(false))
+            .insert_resource(GamePaused(true))
             .add_event::<TimeEvent>()
-            .add_system_to_stage(DayStage::Main, time_system.system());
+            .add_system_to_stage(DayStage::Main, time_system.system().before(DAY_LABEL));
     }
 }

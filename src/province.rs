@@ -3,6 +3,7 @@ use std::fmt::Display;
 
 use bevy::{ecs::system::{Command, SystemParam}, prelude::*};
 use crate::{map::*, pops::*, settlement::Settlements, stage::*};
+use crate::factor::*;
 
 #[derive(GameRef, Debug, Copy, Clone)]
 pub struct ProvinceRef(pub Entity);

@@ -3,10 +3,11 @@ use rand::{Rng, distributions::Slice, prelude::SliceRandom, random, thread_rng};
 use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
-use crate::{constant::DAY_TIMESTEP, map::*, province::{Province, ProvinceMap, ProvinceRef}};
+use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, province::{Province, ProvinceMap, ProvinceRef}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
+use crate::factor::*;
 use crate::settlement::*;
 
 pub trait GameRef {
@@ -19,20 +20,12 @@ pub trait GameRef {
     // }
 }
 
-pub trait FactorType {
-    fn base_decay(&self) -> FactorDecay;
-}
 
-pub enum FactorDecay {
-    Linear(f32),
-    Exponential(f32),
-    None,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PopFactor {
     Prominence,
     Demand(GoodType),
+    MigrationDesire,
 }
 
 impl FactorType for PopFactor {
@@ -40,80 +33,11 @@ impl FactorType for PopFactor {
         match *self {
             PopFactor::Prominence => FactorDecay::Exponential(0.01),
             PopFactor::Demand(good) => FactorDecay::None,
+            PopFactor::MigrationDesire => FactorDecay::None,
         }
     }
 }
 
-pub struct Factor<T> where T: FactorType {
-    ftype: T,
-    amount: f32,
-    target: f32,
-    decay: FactorDecay,
-}
-
-impl<T> Factor<T> where T: FactorType + Eq + Hash + Copy {
-    pub fn decay(&mut self) -> f32 {
-        let this_decay = match self.decay {
-            FactorDecay::Linear(n) => n,
-            FactorDecay::Exponential(n) => (self.amount - self.target) * n,
-            FactorDecay::None => 0.0,
-        };
-        self.amount = (self.amount - this_decay).max(self.target);
-        this_decay
-    }
-
-    pub fn add(&mut self, amt: f32) {
-        self.amount += amt;
-    }
-
-    fn base(ftype: T) -> Self {
-        Self {
-            ftype,
-            amount: 0.0,
-            target: 0.0,
-            decay: ftype.base_decay(),
-        }
-    }
-}
-
-pub struct Factors<T> where T: FactorType + Eq + Hash {
-    pub inner: HashMap<T, Factor<T>>,
-}
-
-
-impl<T> Factors<T> where T: FactorType + Eq + Hash + Copy {
-    pub fn decay(&mut self) {
-        for factor in self.inner.values_mut() {
-            factor.decay();
-        }
-    }
-
-    pub fn add(&mut self, ftype: T, amt: f32) {
-        if !self.inner.contains_key(&ftype) {
-            self.inner.insert(ftype, Factor {
-                ftype,
-                amount: 0.0,
-                target: 0.0,
-                decay: ftype.base_decay(),
-            });
-        }
-
-        self.inner.get_mut(&ftype).unwrap().amount += amt;
-    }
-
-    pub fn factor(&self, ftype: T) -> f32 {
-        self.inner.get(&ftype).map(|f| f.amount).unwrap_or(0.0)
-    }
-}
-
-pub trait EntityManager<R> where R: GameRef {
-    fn get_component<T>(&self, ent: R) -> &T where T: Component;
-    fn get_factor(&self, entity: R, factor: R::Factor) -> f32;
-}
-
-pub trait EntityManagerType {
-    type Ref: GameRef;
-}
 
 // #[derive(SystemParam, EntityManager)]
 // pub struct PopManager<'a> {
@@ -133,7 +57,7 @@ pub struct PopBundle {
     pub kid_buffer: KidBuffer,
 }
 
-#[derive(GameRef)]
+#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct PopRef(pub Entity);
 
 
@@ -230,37 +154,41 @@ pub fn growth_system(
     date: Res<Date>,
     mut pop_query: Query<(&mut Pop, &mut KidBuffer)>,
 ) {
-    println!("growth_system {:?}", *date);
-    if date.is_year {
-        for (mut pop, mut kb) in pop_query.iter_mut() {
-            let babies = positive_isample(2, pop.size * 4 / 100);
-            let deaths = positive_isample(2, pop.size / 50);
+    if !date.is_year {
+        return;
+    }
+    println!("growth_system {}", *date);
+    for (mut pop, mut kb) in pop_query.iter_mut() {
+        let babies = positive_isample(2, pop.size * 4 / 100);
+        let deaths = positive_isample(2, pop.size / 50);
 
-            let adults = kb.spawn(babies);
-            pop.size += adults - deaths;
-            if pop.size <= 0 {
-                println!("dead pop!!");
-            }
+        let adults = kb.spawn(babies);
+        pop.size += adults - deaths;
+        if pop.size <= 0 {
+            println!("dead pop!!");
         }
     }
 }
 
 pub fn harvest_system(
-    farming_pop_query: Query<(&Pop, &FarmingPop, &SettlementRef)>,
+    mut farming_pop_query: Query<(&Pop, &FarmingPop, &SettlementRef, &mut Factors<PopFactor>)>,
     settlement: Query<&Settlement>,
     settlement_factors: Query<&Factors<SettlementFactor>>,
 ) {
-    for (pop, farming_pop, &settlement_ref) in farming_pop_query.iter() {
+    for (pop, farming_pop, &settlement_ref, mut pop_factors) in farming_pop_query.iter_mut() {
         let mut farmed_amount = pop.size as f32;
         let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SettlementFactor::CarryingCapacity);
         let comfortable_limit = carrying_capacity / 2.0;
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
         if settlement_size as f32 > comfortable_limit {
+            pop_factors.add(PopFactor::MigrationDesire, 0.2);
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
             //     pressure: (pop_size / comfortable_limit).powi(2),
             // }))
+        } else {
+            pop_factors.add(PopFactor::MigrationDesire, -0.2);
         }
         if settlement_size as f32 > carrying_capacity {
             farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
@@ -545,15 +473,14 @@ pub struct PopPlugin;
 impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         let pop_systems = SystemSet::new()
-            .with_system(harvest_system.system())
-            .with_system(growth_system.system())
+            .with_system(harvest_system.system().label(DAY_LABEL))
+            .with_system(growth_system.system().label(DAY_LABEL));
             // .with_run_criteria(
             //     FixedTimestep::step(0.0001)
             //         // labels are optional. they provide a way to access the current
             //         // FixedTimestep state from within a system
             //         .with_label(DAY_TIMESTEP),
             // )
-            .with_run_criteria(day_run_criteria_system.system());
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
             .add_system_set_to_stage(DayStage::Main, pop_systems)
