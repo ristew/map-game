@@ -20,10 +20,13 @@ pub mod province;
 pub mod stage;
 pub mod settlement;
 pub mod factor;
+pub mod agent;
 
+use agent::AgentPlugin;
 use bevy::{core::FixedTimestep, diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
 use bevy_tilemap::prelude::TilemapDefaultPlugins;
 use province::ProvincePlugin;
+use settlement::SettlementPlugin;
 // fuck yo namespace
 use ui::*;
 use map::*;
@@ -84,8 +87,10 @@ fn main() {
         .add_plugin(UiPlugin)
         .add_plugin(CameraPlugin)
         .add_plugin(TimePlugin)
+        .add_plugin(AgentPlugin)
         .add_plugin(MapPlugin)
         .add_plugin(PopPlugin)
+        .add_plugin(SettlementPlugin)
         .add_plugin(ProvincePlugin)
         .add_plugin(DiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())

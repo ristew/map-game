@@ -3,7 +3,8 @@ use rand::{Rng, distributions::Slice, prelude::SliceRandom, random, thread_rng};
 use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
-use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, province::{Province, ProvinceMap, ProvinceRef}, pops::{GameRef}};
+use std::fmt::Debug;
+use crate::{PopRef, constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, pops::{GameRef, PopFactor}, province::{Province, ProvinceMap, ProvinceRef}};
 
 pub enum FactorEffectLabel {
 
@@ -105,4 +106,37 @@ pub trait EntityManager<R> where R: GameRef {
 
 pub trait EntityManagerType {
     type Ref: GameRef;
+}
+
+pub trait Factored {
+    type FactorType: FactorType + Send + Sync + Debug;
+
+    fn factor(&self, world: &World, factor: Self::FactorType) -> f32;
+    fn add_factor(&self, world: &mut World, factor: Self::FactorType, amt: f32) -> f32;
+}
+
+impl Factored for PopRef {
+    type FactorType = PopFactor;
+
+    fn factor(&self, world: &World, factor: Self::FactorType) -> f32 {
+        world.get::<Factors<Self::FactorType>>(self.0).unwrap().factor(factor)
+    }
+
+    fn add_factor(&self, world: &mut World, factor: Self::FactorType, amt: f32) -> f32 {
+        world.get_mut::<Factors<Self::FactorType>>(self.0).unwrap().add(factor, amt);
+        self.factor(world, factor)
+    }
+}
+
+pub struct AddFactorCommand<T> where T: Factored + Sized {
+    target: T,
+    factor: T::FactorType,
+    amt: f32,
+}
+
+impl<T> Command for AddFactorCommand<T> where T: Factored + Sized + Debug + Send + Sync + 'static {
+    fn write(self: Box<Self>, world: &mut World) {
+        println!("set factor {:?} {:?} {}", self.target, self.factor, self.amt);
+        self.target.add_factor(world, self.factor, self.amt);
+    }
 }

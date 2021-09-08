@@ -354,9 +354,9 @@ impl Command for SpawnPopCommand {
                 let polity = PolityRef(polity_ent);
                 PopBundle {
                     base: Pop { size: 100 },
-                    farming: Some(FarmingPop { good: GoodType::Wheat }),
                     province: self.province,
                     culture: self.culture,
+                    settlement: self.settlement,
                     polity,
                     language: PopLanguage {
                         language: self.language,
@@ -369,6 +369,7 @@ impl Command for SpawnPopCommand {
             };
             world.spawn()
                 .insert_bundle(bundle)
+                .insert(FarmingPop { good: GoodType::Wheat })
                 .id()
         };
         self.settlement.add_pop(world, PopRef(pop_ent));

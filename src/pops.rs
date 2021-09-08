@@ -47,9 +47,9 @@ impl FactorType for PopFactor {
 #[derive(Bundle)]
 pub struct PopBundle {
     pub base: Pop,
-    pub farming: Option<FarmingPop>,
     pub province: ProvinceRef,
     pub culture: CultureRef,
+    pub settlement: SettlementRef,
     pub polity: PolityRef,
     pub language: PopLanguage,
     pub storage: GoodStorage,
@@ -171,15 +171,20 @@ pub fn growth_system(
 }
 
 pub fn harvest_system(
-    mut farming_pop_query: Query<(&Pop, &FarmingPop, &SettlementRef, &mut Factors<PopFactor>)>,
+    date: Res<Date>,
+    mut farming_pop_query: Query<(&Pop, &SettlementRef, &FarmingPop, &mut Factors<PopFactor>)>,
     settlement: Query<&Settlement>,
     settlement_factors: Query<&Factors<SettlementFactor>>,
 ) {
-    for (pop, farming_pop, &settlement_ref, mut pop_factors) in farming_pop_query.iter_mut() {
+    if !date.is_year {
+        return;
+    }
+    for (pop, &settlement_ref, farming_pop, mut pop_factors) in farming_pop_query.iter_mut() {
         let mut farmed_amount = pop.size as f32;
         let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SettlementFactor::CarryingCapacity);
         let comfortable_limit = carrying_capacity / 2.0;
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
+        println!("size {} comf {}", settlement_size, comfortable_limit);
         if settlement_size as f32 > comfortable_limit {
             pop_factors.add(PopFactor::MigrationDesire, 0.2);
             // population pressure on available land, seek more

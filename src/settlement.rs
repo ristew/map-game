@@ -1,8 +1,11 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
+use crate::constant::DAY_LABEL;
 use crate::pops::*;
 use crate::map::*;
 use crate::province::*;
 use crate::factor::*;
+use crate::stage::DayStage;
+use crate::time::Date;
 
 pub struct Settlement {
     pub name: String,
@@ -47,7 +50,35 @@ pub struct SettlementBundle {
     pub factors: Factors<SettlementFactor>,
 }
 
+fn settlement_info_system(
+    date: Res<Date>,
+    pop_query: Query<&Pop>,
+    mut settlement_query: Query<(&mut Settlement, &SettlementPops)>,
+) {
+    if !date.is_month {
+        return;
+    }
+
+    for (mut settlement, pops) in settlement_query.iter_mut() {
+        let mut total_pop = 0;
+        for pop_ref in pops.0.iter() {
+            let pop = pop_query.get(pop_ref.0).unwrap();
+            total_pop += pop.size;
+        }
+        settlement.population = total_pop;
+    }
+}
+
 // #[derive(SystemParam, EntityManager)]
 // pub struct SettlementManager<'a> {
 //     entity_query: Query<'a, (&'static Settlement, &'static Pops, &'static MapCoordinate, &'static Factors<SettlementFactor>)>,
 // }
+
+pub struct SettlementPlugin;
+
+impl Plugin for SettlementPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app
+            .add_system_to_stage(DayStage::Main, settlement_info_system.system());
+    }
+}
