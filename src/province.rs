@@ -16,8 +16,9 @@ pub struct Province {
 }
 
 pub struct ProvincePops(pub Vec<Entity>);
+pub struct ProvinceSettlements(pub Vec<SettlementRef>);
 
-pub struct ProvinceMap(pub HashMap<MapCoordinate, Entity>);
+pub struct ProvinceMap(pub HashMap<MapCoordinate, ProvinceRef>);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ProvinceFactor {
@@ -42,7 +43,7 @@ impl Command for ResetProvinceMap {
         let mut inner = HashMap::new();
         let mut query = world.query::<(Entity, &Province, &MapCoordinate)>();
         for (ent, _, &coord) in query.iter(&world) {
-            inner.insert(coord, ent);
+            inner.insert(coord, ProvinceRef(ent));
         }
         let mut provinces = world.get_resource_mut::<ProvinceMap>().unwrap();
 

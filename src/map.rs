@@ -42,6 +42,15 @@ impl MapCoordinate {
         Self::from_cube_round(Vec2::new(coord_x, coord_y))
     }
 
+    pub fn random_local(&self) -> MapCoordinate {
+        let directions = vec![(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1), (0, 0)];
+        let dir = directions.choose(&mut thread_rng()).unwrap();
+        MapCoordinate {
+            x: self.x + dir.0,
+            y: self.y + dir.1,
+        }
+    }
+
     pub fn from_cube_round(pos: Vec2) -> Self {
         let x = pos.x;
         let y = pos.y;
@@ -297,6 +306,7 @@ impl Command for SpawnCultureCommand {
             province: self.province,
             language: LanguageRef(language_ent),
             culture: CultureRef(culture_ent),
+            size: 100,
         };
 
         Box::new(spawn_pop_command).write(world);
@@ -307,6 +317,7 @@ pub struct SpawnSettlementCommand {
     pub province: ProvinceRef,
     pub language: LanguageRef,
     pub culture: CultureRef,
+    pub size: usize,
 }
 
 impl Command for SpawnSettlementCommand {
@@ -320,6 +331,7 @@ impl Command for SpawnSettlementCommand {
                         population: 0,
                     },
                     pops: SettlementPops(Vec::new()),
+                    province: self.province,
                     factors: Factors::new(),
                 })
                 .id()
@@ -329,6 +341,7 @@ impl Command for SpawnSettlementCommand {
             settlement,
             language: self.language,
             culture: self.culture,
+            size: self.size,
         }).write(world);
     }
 }
@@ -338,6 +351,7 @@ pub struct SpawnPopCommand {
     pub settlement: SettlementRef,
     pub language: LanguageRef,
     pub culture: CultureRef,
+    pub size: usize,
 }
 
 impl Command for SpawnPopCommand {
@@ -353,7 +367,7 @@ impl Command for SpawnPopCommand {
             let bundle = {
                 let polity = PolityRef(polity_ent);
                 PopBundle {
-                    base: Pop { size: 100 },
+                    base: Pop { size: self.size },
                     province: self.province,
                     culture: self.culture,
                     settlement: self.settlement,
@@ -514,6 +528,7 @@ fn build_world(
                             total_population: 0,
                             fertility: 30.0,
                         })
+                        .insert(ProvinceSettlements(Vec::new()))
                         .insert(ProvincePops(Vec::new()));
                     ecmds.id()
                 };
@@ -619,7 +634,7 @@ pub fn pop_overlay_system(
         let mut pop_map = HashMap::new();
         let mut max_pop = 0;
         for coord in tile_coord_query.iter() {
-            let pop = province_query.get(*province_map.0.get(coord).unwrap()).map(|pi| pi.total_population).unwrap_or(0);
+            let pop = province_query.get(province_map.0.get(coord).unwrap().0).map(|pi| pi.total_population).unwrap_or(0);
             pop_map.insert(coord, pop);
             if pop > max_pop {
                 max_pop = pop;

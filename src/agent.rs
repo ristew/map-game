@@ -1,6 +1,6 @@
 use bevy::{ecs::system::{Command, CommandQueue}, prelude::*};
 
-use crate::{map::SpawnSettlementCommand, pops::PopLanguage, prelude::*, probability::logistic};
+use crate::{map::SpawnSettlementCommand, pops::{PopLanguage, PopSeekMigrationCommand}, prelude::*, probability::logistic};
 
 
 pub trait Agent {
@@ -11,23 +11,20 @@ pub trait Agent {
 impl Agent for PopRef {
     fn think(&self, world: &mut World) -> Vec<Box<dyn Command>> {
         let migration_factor = self.factor(world, PopFactor::MigrationDesire);
-        if migration_factor <= 1.0 {
-            return Vec::new();
+        if migration_factor > 1.0 && individual_event(logistic(migration_factor)) {
+            // bad example
+            println!("try migrate {:?} {:?}", self, self.get::<ProvinceRef>(world).get::<MapCoordinate>(world));
+            println!("move pops");
+            vec![
+                Box::new(PopSeekMigrationCommand {
+                    pop: *self,
+                    pressure: migration_factor,
+                })
+            ]
         }
-        if !individual_event(logistic(migration_factor)) {
-            return Vec::new()
+        else {
+            Vec::new()
         }
-        // bad example
-        println!("try migrate {:?} {:?}", self, self.get::<ProvinceRef>(world).get::<MapCoordinate>(world));
-        self.get_mut::<Pop>(world).size -= 100;
-        println!("move pops");
-        vec![
-            Box::new(SpawnSettlementCommand {
-                province: *self.get::<ProvinceRef>(world),
-                language: self.get::<PopLanguage>(world).language,
-                culture: *self.get::<CultureRef>(world),
-            })
-        ]
     }
 }
 

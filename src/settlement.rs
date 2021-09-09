@@ -48,6 +48,7 @@ pub struct Settlements(pub Vec<SettlementRef>);
 pub struct SettlementBundle {
     pub info: Settlement,
     pub pops: SettlementPops,
+    pub province: ProvinceRef,
     pub factors: Factors<SettlementFactor>,
 }
 

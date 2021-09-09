@@ -464,7 +464,7 @@ pub fn info_tag_system(
             &InfoTag::ProvincePopulation(coord) =>
                 format!(
                     "Total population: {}",
-                    province_info_query.get(*province_map.0.get(&coord).unwrap()).unwrap().total_population
+                    province_info_query.get(province_map.0.get(&coord).unwrap().0).unwrap().total_population
                 ),
             &InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             &InfoTag::SelectedProvinceName => {
@@ -477,7 +477,7 @@ pub fn info_tag_system(
             &InfoTag::SelectedProvincePopulation => {
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     // monads and strife
-                    format!("population: {:?}", province_info_query.get(*province_map.0.get(&coord).unwrap()).map(|province| province.total_population).unwrap_or(0))
+                    format!("population: {:?}", province_info_query.get(province_map.0.get(&coord).unwrap().0).map(|province| province.total_population).unwrap_or(0))
                 } else {
                     "".to_string()
                 }

@@ -3,7 +3,8 @@ use rand::{Rng, distributions::Slice, prelude::SliceRandom, random, thread_rng};
 use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
-use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, province::{Province, ProvinceMap, ProvinceRef}};
+use crate::prelude::*;
+use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, province::{Province, ProvinceMap, ProvinceRef, ProvinceSettlements}};
 use crate::time::*;
 use crate::probability::*;
 use crate::stage::*;
@@ -465,6 +466,111 @@ impl GoodType {
             Wine => Some(ConsumableGoodCatagory::Tier1),
             _ => None,
         }
+    }
+}
+
+// pub enum PopCommand {
+//     SeekMigration(PopRef),
+//     Migrate(PopRef, ProvinceRef)
+// }
+
+// pub struct PopCommands(Vec<PopCommand>);
+
+// pub fn pop_command_system(
+//     mut pop_commands: ResMut<PopCommands>,
+// ) {
+//     for cmd in pop_commands.0.iter() {
+//         match cmd {
+//             PopCommand::SeekMigration(pop) => {
+//                 let coordinate =
+//             },
+//             PopCommand::Migrate(pop, province) => {},
+//         }
+//     }
+
+//     pop_commands.0.clear();
+// }
+
+
+pub struct PopSeekMigrationCommand {
+    pub pop: PopRef,
+    pub pressure: f32,
+}
+
+impl Command for PopSeekMigrationCommand {
+    fn write(self: Box<Self>, world: &mut World) {
+        let coordinate = self
+            .pop
+            .get::<ProvinceRef>(world)
+            .get::<MapCoordinate>(world);
+        let random_point = coordinate.random_local();
+        if random_point == *coordinate {
+            // got unlucky, just die
+            return;
+        }
+
+        let province_map = world.get_resource::<ProvinceMap>().unwrap();
+        let pref = province_map.0.get(&random_point).unwrap();
+        let mut target_value = self.pressure.powf(1.5);
+        for settlement in pref.get::<ProvinceSettlements>(world).0.iter() {
+            println!("settlement?? {:?}", settlement);
+            target_value -= 1.0;
+            if settlement.get::<CultureRef>(world) != self.pop.get::<CultureRef>(world) {
+                target_value -= 2.0;
+            } else {
+                println!("meld");
+            }
+        }
+        if individual_event(logistic(target_value)) {
+
+        }
+
+            //             let settlement_carrying_capacity = settlement.get().carrying_capacity(world);
+            //             if (settlement.get().population(world) as f32) < settlement_carrying_capacity / 4.0 {
+            //                 let size = (self.pop.get().size / 4).min((settlement_carrying_capacity / 4.0).round() as isize);
+            //                 self.pop.get_mut().migration_status = Some(MigrationStatus {
+            //                     migrating: size,
+            //                     dest: target_province_id.clone(),
+            //                     date: world.date.day + 60,
+            //                     settlement: Some(settlement.clone()),
+            //                 });
+            //                 world.events.add_deferred(Rc::new(MigrationDoneEvent(self.pop.clone())), world.date.day + 60);
+            //                 return;
+            //             }
+            //         }
+            //     }
+            //     if individual_event(logistic(target_value)) {
+            //         // println!("migrate {:?} to {}", self.pop, random_point);
+            //         let size = self.pop.get().size / 5;
+            //         self.pop.get_mut().migration_status = Some(MigrationStatus {
+            //             migrating: size,
+            //             dest: target_province_id.clone(),
+            //             date: world.date.day + 60,
+            //             settlement: None,
+            //         });
+            //         world.events.add_deferred(Rc::new(MigrationDoneEvent(self.pop.clone())), world.date.day + 60);
+            //     }
+            // }
+    }
+}
+
+pub struct PopMigrateCommand {
+    pub pop: PopRef,
+    pub dest: ProvinceRef,
+    pub migrating: usize,
+    pub settlement: Option<SettlementRef>,
+}
+
+impl Command for PopMigrateCommand {
+
+    fn write(self: Box<Self>, world: &mut World) {
+        // // println!("finally migrate {:?}", self.pop);
+        // if let Some(settlement_id) = self.settlement.clone() {
+        //     settlement_id.get_mut().accept_migrants(world, self.pop.clone(), self.migrating);
+        // } else {
+        //     add_settlement(world, self.pop.get().culture.clone(), self.dest.clone(), self.pop.get().polity.clone(), self.migrating);
+        // }
+        // self.pop.get_mut().size -= self.migrating;
     }
 }
 

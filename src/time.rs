@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::{core::FixedTimesteps, ecs::{schedule::ShouldRun, system::Command}, prelude::*};
 
 use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, stage::DayStage, tag::DateDisplay};
@@ -10,11 +12,15 @@ pub enum TimeEvent {
     Year,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct Date {
     pub day: usize,
     pub month: usize,
     pub year: usize,
+}
+
+pub struct CurrentDate {
+    pub date: Date,
     pub abs_day: usize,
     pub is_day: bool,
     pub is_week: bool,
@@ -106,6 +112,18 @@ fn time_system(
         }
     // } else {
     //     println!("not next day! {:?}", *date);
+    }
+}
+
+pub struct DeferredCommands(HashMap<Date, Vec<Box<dyn Command>>>);
+
+impl DeferredCommands {
+    pub fn add(&mut self, date: Date, command: Box<dyn Command>) {
+        if !self.0.contains_key(&date) {
+            self.0.insert(date, vec![command]);
+        } else {
+            self.0.get_mut(&date).unwrap().push(command);
+        }
     }
 }
 

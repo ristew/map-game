@@ -24,7 +24,7 @@ pub mod agent;
 pub mod gameref;
 
 pub mod prelude {
-        pub use crate::{macros::GameRef, PopRef, constant::DAY_LABEL, factor::Factored, map::MapCoordinate, pops::{Pop, PopFactor, CultureRef, LanguageRef}, probability::individual_event, province::{Province, ProvinceRef}, stage::DayStage, time::Date, gameref::GameRef};
+        pub use crate::{macros::GameRef, PopRef, constant::DAY_LABEL, factor::Factored, map::MapCoordinate, settlement::SettlementRef, pops::{Pop, PopFactor, CultureRef, LanguageRef}, probability::individual_event, province::{Province, ProvinceRef}, stage::DayStage, time::Date, gameref::GameRef};
 }
 
 use agent::AgentPlugin;
