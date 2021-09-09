@@ -10,16 +10,6 @@ use crate::stage::*;
 use crate::factor::*;
 use crate::settlement::*;
 
-pub trait GameRef {
-    type Factor: Eq + Hash;
-
-    fn entity(&self) -> Entity;
-
-    // fn get<'a, T>(&self, manager: &'a dyn EntityManager) -> &'a T where T: Component {
-    //     manager.get_component::<T>(self.entity())
-    // }
-}
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PopFactor {
@@ -129,7 +119,7 @@ pub enum CultureFactor {
 
 }
 
-#[derive(GameRef)]
+#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct CultureRef(pub Entity);
 pub struct Culture {
     pub name: String,
@@ -268,7 +258,13 @@ pub struct Language {
     pub end_consonants: Vec<String>,
 }
 
+#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct LanguageRef(pub Entity);
+
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+pub enum LanguageFactor {
+
+}
 
 fn list_filter_chance(list: &Vec<String>, chance: f32) -> Vec<String> {
     let target_len = (list.len() as f32 * chance).round() as usize;

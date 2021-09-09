@@ -1,4 +1,5 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
+use crate::prelude::*;
 use crate::constant::DAY_LABEL;
 use crate::pops::*;
 use crate::map::*;

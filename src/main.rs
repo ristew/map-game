@@ -21,6 +21,11 @@ pub mod stage;
 pub mod settlement;
 pub mod factor;
 pub mod agent;
+pub mod gameref;
+
+pub mod prelude {
+        pub use crate::{macros::GameRef, PopRef, constant::DAY_LABEL, factor::Factored, map::MapCoordinate, pops::{Pop, PopFactor, CultureRef, LanguageRef}, probability::individual_event, province::{Province, ProvinceRef}, stage::DayStage, time::Date, gameref::GameRef};
+}
 
 use agent::AgentPlugin;
 use bevy::{core::FixedTimestep, diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
@@ -74,7 +79,7 @@ fn main() {
             DayStage::Main,
             SystemStage::parallel()
                 .with_run_criteria(
-                    FixedTimestep::step(0.0001)
+                    FixedTimestep::step(0.001)
                         // labels are optional. they provide a way to access the current
                         // FixedTimestep state from within a system
                         .with_label(DAY_TIMESTEP),

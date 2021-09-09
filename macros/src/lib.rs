@@ -25,7 +25,7 @@ pub fn game_ref_derive(input: TokenStream) -> TokenStream {
     let generics = input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let expanded = quote! {
-        impl #impl_generics crate::pops::GameRef for #name #ty_generics #where_clause {
+        impl #impl_generics crate::gameref::GameRef for #name #ty_generics #where_clause {
             type Factor = #factor_name;
             fn entity(&self) -> Entity {
                 self.0

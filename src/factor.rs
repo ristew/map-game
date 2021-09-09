@@ -4,7 +4,7 @@ use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::fmt::Debug;
-use crate::{PopRef, constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, pops::{GameRef, PopFactor}, province::{Province, ProvinceMap, ProvinceRef}};
+use crate::prelude::*;
 
 pub enum FactorEffectLabel {
 

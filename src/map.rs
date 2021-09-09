@@ -304,9 +304,9 @@ impl Command for SpawnCultureCommand {
 }
 
 pub struct SpawnSettlementCommand {
-    province: ProvinceRef,
-    language: LanguageRef,
-    culture: CultureRef,
+    pub province: ProvinceRef,
+    pub language: LanguageRef,
+    pub culture: CultureRef,
 }
 
 impl Command for SpawnSettlementCommand {
@@ -334,10 +334,10 @@ impl Command for SpawnSettlementCommand {
 }
 
 pub struct SpawnPopCommand {
-    province: ProvinceRef,
-    settlement: SettlementRef,
-    language: LanguageRef,
-    culture: CultureRef,
+    pub province: ProvinceRef,
+    pub settlement: SettlementRef,
+    pub language: LanguageRef,
+    pub culture: CultureRef,
 }
 
 impl Command for SpawnPopCommand {
@@ -483,45 +483,45 @@ fn build_world(
         let entities: Vec<MapEntitySaveData> = serde_json::from_str(&contents).unwrap();
         // let mut tiles = Vec::new();
         for esd in &entities {
-            let province_ent = {
-                let mut ecmds = commands.spawn();
-                macro_rules! load_component {
-                    ( $name:ident ) => {
-                        if let Some(c) = esd.$name {
-                            ecmds.insert(c);
-                        }
+            let mut ecmds = commands.spawn();
+            macro_rules! load_component {
+                ( $name:ident ) => {
+                    if let Some(c) = esd.$name {
+                        ecmds.insert(c);
                     }
                 }
-                if let Some(map_tile) = esd.map_tile {
-                    // let tile_material = map_tile.tile_type.sprite();
-                    // ecmds.insert_bundle(SpriteSheetBundle {
-                    //     texture_atlas: texture_atlas_handle.0.as_weak(),
-                    //     sprite: tile_material,
-                    //     ..Default::default()
-                    // });
-                    hex_map.0.insert(esd.map_coordinate.unwrap(), Arc::new(ecmds.id()));
-                    let point = esd.map_coordinate.unwrap().point3();
-                    map.insert_tile(Tile {
-                        point,
-                        sprite_index: *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap(),
-                        ..Default::default()
-                    });
-                    map.spawn_chunk_containing_point(point).unwrap();
-                }
+            }
+            if let Some(map_tile) = esd.map_tile {
+                // let tile_material = map_tile.tile_type.sprite();
+                // ecmds.insert_bundle(SpriteSheetBundle {
+                //     texture_atlas: texture_atlas_handle.0.as_weak(),
+                //     sprite: tile_material,
+                //     ..Default::default()
+                // });
+                hex_map.0.insert(esd.map_coordinate.unwrap(), Arc::new(ecmds.id()));
+                let point = esd.map_coordinate.unwrap().point3();
+                map.insert_tile(Tile {
+                    point,
+                    sprite_index: *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap(),
+                    ..Default::default()
+                });
+                map.spawn_chunk_containing_point(point).unwrap();
                 load_component!(map_coordinate);
                 load_component!(map_tile);
-                ecmds
-                    .insert(Province {
-                        total_population: 0,
-                        fertility: 30.0,
-                    })
-                    .insert(ProvincePops(Vec::new()));
-                ecmds.id()
-            };
-            if individual_event(0.1) {
-                commands.add(SpawnCultureCommand {
-                    province: ProvinceRef(province_ent),
-                })
+                let province_ent = {
+                    ecmds
+                        .insert(Province {
+                            total_population: 0,
+                            fertility: 30.0,
+                        })
+                        .insert(ProvincePops(Vec::new()));
+                    ecmds.id()
+                };
+                if individual_event(0.1) {
+                    commands.add(SpawnCultureCommand {
+                        province: ProvinceRef(province_ent),
+                    });
+                }
             }
         }
         // for chunk in &chunks {
