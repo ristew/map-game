@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
 };
 use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
+use crate::prelude::*;
 use crate::{PopRef, pops::{Pop, PopFactor}, province::{Province, ProvinceMap}, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 use crate::factor::Factors;
@@ -455,7 +456,7 @@ pub fn info_tag_system(
     province_info_query: Query<&Province>,
     province_map: Res<ProvinceMap>,
     pop_query: Query<(&Pop, &Factors<PopFactor>)>,
-    date: Res<Date>,
+    date: Res<CurrentDate>,
     game_speed: Res<GameSpeed>,
     game_paused: Res<GamePaused>,
 ) {
@@ -487,7 +488,7 @@ pub fn info_tag_system(
                 format!("{:?}: {}", factor, factors.factor(factor))
             },
             &InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
-            &InfoTag::DateDisplay => format!("({}) year {}, {:02}/{:02}", game_paused.0.then(|| "p").unwrap_or(format!("{}", game_speed.0).as_str()), date.year, date.month, date.day),
+            &InfoTag::DateDisplay => format!("({}) {}", game_paused.0.then(|| "p").unwrap_or(format!("{}", game_speed.0).as_str()), *date),
             &InfoTag::GlobalPopulation => {
                 if !date.is_month {
                     continue;

@@ -120,6 +120,12 @@ pub enum CultureFactor {
 
 }
 
+impl FactorType for CultureFactor {
+    fn base_decay(&self) -> FactorDecay {
+        todo!()
+    }
+}
+
 #[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct CultureRef(pub Entity);
 pub struct Culture {
@@ -131,6 +137,13 @@ pub struct Culture {
 pub enum PolityFactor {
 
 }
+
+impl FactorType for PolityFactor {
+    fn base_decay(&self) -> FactorDecay {
+        todo!()
+    }
+}
+
 #[derive(GameRef)]
 pub struct PolityRef(pub Entity);
 
@@ -142,27 +155,45 @@ pub struct Polity {
 
 
 pub fn growth_system(
-    date: Res<Date>,
-    mut pop_query: Query<(&mut Pop, &mut KidBuffer)>,
+    mut commands: Commands,
+    date: Res<CurrentDate>,
+    mut pop_query: Query<(Entity, &mut Pop, &mut KidBuffer)>,
 ) {
     if !date.is_year {
         return;
     }
     println!("growth_system {}", *date);
-    for (mut pop, mut kb) in pop_query.iter_mut() {
+    for (pop_ent, mut pop, mut kb) in pop_query.iter_mut() {
         let babies = positive_isample(2, pop.size * 4 / 100);
         let deaths = positive_isample(2, pop.size / 50);
-
-        let adults = kb.spawn(babies);
-        pop.size += adults - deaths;
-        if pop.size <= 0 {
-            println!("dead pop!!");
+        let new = kb.spawn(babies) as isize - deaths as isize;
+        if new > 0 {
+            pop.size = pop.size + new as usize;
+        } else {
+            println!("lose people:? {}", new);
+            if pop.size < -new as usize {
+                commands.add(PopDieCommand(PopRef(pop_ent)));
+            }
         }
     }
 }
 
+pub struct PopDieCommand(pub PopRef);
+
+impl Command for PopDieCommand {
+    fn write(self: Box<Self>, world: &mut World) {
+        let settlement = *self.0
+            .get::<SettlementRef>(world);
+        settlement
+            .get_mut::<SettlementPops>(world)
+            .remove_pop(self.0);
+        world
+            .despawn(self.0.entity());
+    }
+}
+
 pub fn harvest_system(
-    date: Res<Date>,
+    date: Res<CurrentDate>,
     mut farming_pop_query: Query<(&Pop, &SettlementRef, &FarmingPop, &mut Factors<PopFactor>)>,
     settlement: Query<&Settlement>,
     settlement_factors: Query<&Factors<SettlementFactor>>,
@@ -175,7 +206,7 @@ pub fn harvest_system(
         let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SettlementFactor::CarryingCapacity);
         let comfortable_limit = carrying_capacity / 2.0;
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
-        println!("size {} comf {}", settlement_size, comfortable_limit);
+        // println!("size {} comf {}", settlement_size, comfortable_limit);
         if settlement_size as f32 > comfortable_limit {
             pop_factors.add(PopFactor::MigrationDesire, 0.2);
             // population pressure on available land, seek more
@@ -265,6 +296,12 @@ pub struct LanguageRef(pub Entity);
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum LanguageFactor {
 
+}
+
+impl FactorType for LanguageFactor {
+    fn base_decay(&self) -> FactorDecay {
+        todo!()
+    }
 }
 
 fn list_filter_chance(list: &Vec<String>, chance: f32) -> Vec<String> {
@@ -499,6 +536,7 @@ pub struct PopSeekMigrationCommand {
 
 impl Command for PopSeekMigrationCommand {
     fn write(self: Box<Self>, world: &mut World) {
+        let pop_size = self.pop.get::<Pop>(world).size;
         let coordinate = self
             .pop
             .get::<ProvinceRef>(world)
@@ -510,7 +548,12 @@ impl Command for PopSeekMigrationCommand {
         }
 
         let province_map = world.get_resource::<ProvinceMap>().unwrap();
-        let pref = province_map.0.get(&random_point).unwrap();
+        let province_maybe = province_map.0.get(&random_point);
+        // missed the map?
+        if province_maybe.is_none() {
+            return;
+        }
+        let pref = province_maybe.unwrap();
         let mut target_value = self.pressure.powf(1.5);
         for settlement in pref.get::<ProvinceSettlements>(world).0.iter() {
             println!("settlement?? {:?}", settlement);
@@ -522,7 +565,26 @@ impl Command for PopSeekMigrationCommand {
             }
         }
         if individual_event(logistic(target_value)) {
-
+            // println!("really migrate?? {:?}", self.pop);
+            let migration_status = {
+                let arrival = world.get_resource::<CurrentDate>().unwrap().date.days_after(30);
+                let migrating = pop_size / 5;
+                MigrationStatus {
+                    dest: *pref,
+                    migrating,
+                    settlement: None,
+                    arrival,
+                }
+            };
+            // println!("lose {} people of {}", migration_status.migrating, pop_size);
+            self.pop.clear_factor(world, PopFactor::MigrationDesire);
+            world
+                .get_mut::<Pop>(self.pop.entity())
+                .unwrap()
+                .size -= migration_status.migrating;
+            world
+                .entity_mut(self.pop.entity())
+                .insert(migration_status);
         }
 
             //             let settlement_carrying_capacity = settlement.get().carrying_capacity(world);
@@ -554,11 +616,48 @@ impl Command for PopSeekMigrationCommand {
     }
 }
 
-pub struct PopMigrateCommand {
-    pub pop: PopRef,
+pub struct MigrationStatus {
     pub dest: ProvinceRef,
     pub migrating: usize,
     pub settlement: Option<SettlementRef>,
+    pub arrival: Date,
+}
+
+fn pop_migration_system(
+    mut commands: Commands,
+    mut migrating_pops: Query<(Entity, &mut Pop, &MigrationStatus, &PopLanguage, &CultureRef)>,
+    date: Res<CurrentDate>,
+) {
+    if !date.is_day {
+        return;
+    }
+    for (pop_ent, mut pop, migration_status, language, &culture) in migrating_pops.iter_mut() {
+        if migration_status.arrival.is_after(date.date) {
+            if let Some(settlement) = migration_status.settlement {
+                commands.add(SpawnPopCommand {
+                    province: migration_status.dest,
+                    settlement,
+                    language: language.language,
+                    culture,
+                    size: migration_status.migrating,
+                })
+            } else {
+                commands.add(SpawnSettlementCommand {
+                    province: migration_status.dest,
+                    language: language.language,
+                    culture,
+                    size: migration_status.migrating,
+                })
+            }
+            commands
+                .entity(pop_ent)
+                .remove::<MigrationStatus>();
+        }
+    }
+}
+
+pub struct PopMigrateCommand {
+    pub pop: PopRef,
 }
 
 impl Command for PopMigrateCommand {
@@ -581,7 +680,8 @@ impl Plugin for PopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         let pop_systems = SystemSet::new()
             .with_system(harvest_system.system().label(DAY_LABEL))
-            .with_system(growth_system.system().label(DAY_LABEL));
+            .with_system(growth_system.system().label(DAY_LABEL))
+            .with_system(pop_migration_system.system().label(DAY_LABEL));
             // .with_run_criteria(
             //     FixedTimestep::step(0.0001)
             //         // labels are optional. they provide a way to access the current

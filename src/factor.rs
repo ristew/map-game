@@ -64,16 +64,14 @@ pub struct Factors<T> where T: FactorType + Eq + Hash {
     pub inner: HashMap<T, Factor<T>>,
 }
 
-impl<T> Factors<T> where T: FactorType + Eq + Hash {
+
+impl<T> Factors<T> where T: FactorType + Eq + Hash + Copy {
     pub fn new() -> Self {
         Self {
             inner: HashMap::new()
         }
     }
-}
 
-
-impl<T> Factors<T> where T: FactorType + Eq + Hash + Copy {
     pub fn decay(&mut self) {
         for factor in self.inner.values_mut() {
             factor.decay();
@@ -96,6 +94,10 @@ impl<T> Factors<T> where T: FactorType + Eq + Hash + Copy {
 
     pub fn factor(&self, ftype: T) -> f32 {
         self.inner.get(&ftype).map(|f| f.amount).unwrap_or(0.0)
+    }
+
+    pub fn clear(&mut self, ftype: T) -> f32 {
+        self.inner.remove(&ftype).map(|f| f.amount).unwrap_or(0.0)
     }
 }
 

@@ -19,34 +19,40 @@ pub struct Date {
     pub year: usize,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct CurrentDate {
     pub date: Date,
-    pub abs_day: usize,
     pub is_day: bool,
     pub is_week: bool,
     pub is_month: bool,
     pub is_year: bool,
 }
 
+impl CurrentDate {
+    pub fn next_day(&mut self) {
+        self.date.next_day();
+        self.is_day = true;
+        self.is_week = self.date.day % 7 == 0;
+        self.is_month = self.date.day == 1;
+        self.is_year = self.date.day == 1 && self.date.month == 1;
+    }
+}
+
+impl std::fmt::Display for CurrentDate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.date.fmt(f)
+    }
+}
+
 impl Date {
     pub fn next_day(&mut self) {
-        self.is_week = false;
-        self.is_month = false;
-        self.is_year = false;
-        self.is_day = true;
         self.day += 1;
-        self.abs_day += 1;
-        if self.abs_day % 7 == 0 {
-            self.is_week = true;
-        }
         if self.day > 30 {
             self.month += 1;
             self.day = 1;
-            self.is_month = true;
             if self.month > 12 {
                 self.month = 1;
                 self.year += 1;
-                self.is_year = true;
             }
         }
     }
@@ -65,8 +71,31 @@ impl Date {
         }
     }
 
+    pub fn abs_day(&self) -> usize {
+        self.day + (self.month + self.year * 12) * 30
+    }
+
+    pub fn is_after(&self, other: Date) -> bool {
+        self.abs_day() > other.abs_day()
+    }
+
     pub fn is_day_of_year(&self, day_of_year: DayOfYear) -> bool {
         self.days_after_doy(day_of_year) == 0
+    }
+
+    pub fn days_after(&self, days: usize) -> Self {
+        Self::from_abs(self.abs_day() + days)
+    }
+
+    pub fn from_abs(abs: usize) -> Self {
+        let year = abs / 360;
+        let month = (abs - year / 360) / 30;
+        let day = abs % 30;
+        Self {
+            year,
+            month,
+            day,
+        }
     }
 }
 
@@ -88,7 +117,7 @@ pub struct GamePaused(pub bool);
 
 fn time_system(
     mut frame: Local<usize>,
-    mut date: ResMut<Date>,
+    mut date: ResMut<CurrentDate>,
     time: Res<Time>,
     game_speed: Res<GameSpeed>,
     mut date_texts: Query<(&DateDisplay, &mut Text)>,
@@ -128,7 +157,7 @@ impl DeferredCommands {
 }
 
 pub fn day_run_criteria_system(
-    day: Res<Date>,
+    day: Res<CurrentDate>,
 ) -> ShouldRun {
     println!("day_run_criteria_system?? {}", *day);
     if day.is_day {
@@ -143,11 +172,12 @@ pub struct TimePlugin;
 impl Plugin for TimePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
-            .insert_resource(Date {
-                abs_day: 1,
-                day: 1,
-                month: 1,
-                year: 1,
+            .insert_resource(CurrentDate {
+                date: Date {
+                    day: 1,
+                    month: 1,
+                    year: 1,
+                },
                 ..Default::default()
             })
             .insert_resource(GameSpeed(5))

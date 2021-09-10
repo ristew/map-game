@@ -3,7 +3,7 @@ use bevy::{ecs::component::Component, prelude::*};
 use crate::prelude::*;
 
 pub trait GameRef {
-    type Factor: Eq + Hash;
+    type Factor: FactorType + Copy + Eq + Hash + Send + Sync + 'static;
 
     fn entity(&self) -> Entity;
 
@@ -21,5 +21,13 @@ pub trait GameRef {
 
     fn try_get_mut<'a, T>(&self, world: &'a mut World) -> Option<Mut<'a, T>> where T: Component {
         world.get_mut::<T>(self.entity())
+    }
+
+    fn get_factor(&self, world: &World, factor: Self::Factor) -> f32 {
+        world.get::<Factors<Self::Factor>>(self.entity()).unwrap().factor(factor)
+    }
+
+    fn clear_factor(&self, world: &mut World, factor: Self::Factor) -> f32 {
+        world.get_mut::<Factors<Self::Factor>>(self.entity()).unwrap().clear(factor)
     }
 }

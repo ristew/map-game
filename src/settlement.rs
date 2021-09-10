@@ -15,6 +15,12 @@ pub struct Settlement {
 
 pub struct SettlementPops(pub Vec<PopRef>);
 
+impl SettlementPops {
+    pub fn remove_pop(&mut self, pop: PopRef) {
+        self.0.retain(|i| *i != pop);
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum SettlementFactor {
     CarryingCapacity
@@ -53,7 +59,7 @@ pub struct SettlementBundle {
 }
 
 fn settlement_info_system(
-    date: Res<Date>,
+    date: Res<CurrentDate>,
     pop_query: Query<&Pop>,
     mut settlement_query: Query<(&mut Settlement, &SettlementPops)>,
 ) {

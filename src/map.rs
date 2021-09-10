@@ -8,8 +8,9 @@ use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::{random, thread_rng};
+use crate::prelude::*;
 use crate::probability::individual_event;
-use crate::settlement::{Settlement, SettlementBundle, SettlementPops};
+use crate::settlement::{Settlement, SettlementBundle, SettlementFactor, SettlementPops};
 use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, time::Date};
 use crate::stage::{DayStage, InitStage};
 use crate::factor::Factors;
@@ -323,6 +324,8 @@ pub struct SpawnSettlementCommand {
 impl Command for SpawnSettlementCommand {
     fn write(self: Box<Self>, world: &mut World) {
         let name = world.get::<Language>(self.language.0).unwrap().generate_name(2);
+        let mut factors = Factors::new();
+        factors.add(SettlementFactor::CarryingCapacity, 100.0);
         let settlement = SettlementRef({
             world.spawn()
                 .insert_bundle(SettlementBundle {
@@ -332,7 +335,7 @@ impl Command for SpawnSettlementCommand {
                     },
                     pops: SettlementPops(Vec::new()),
                     province: self.province,
-                    factors: Factors::new(),
+                    factors,
                 })
                 .id()
         });
@@ -590,7 +593,7 @@ fn show_overlay_system(
     tiles_query: Query<(&MapTile, &MapCoordinate)>,
     overlay_command: Res<OverlayCommand>,
     load_map: Res<LoadMap>,
-    date: Res<Date>,
+    date: Res<CurrentDate>,
     mut tile_map_query: Query<&mut Tilemap>,
 ) {
     if load_map.0 != None {
@@ -628,7 +631,7 @@ pub fn pop_overlay_system(
     province_map: Res<ProvinceMap>,
     province_query: Query<&Province>,
     current_overlay: Res<CurrentOverlayType>,
-    date: Res<Date>,
+    date: Res<CurrentDate>,
 ) {
     if (date.is_week || current_overlay.is_changed()) && *current_overlay == CurrentOverlayType::ProvincePop {
         let mut pop_map = HashMap::new();
