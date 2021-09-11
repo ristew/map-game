@@ -1,2 +1,4 @@
 /target
 macros/target
+perf.data*
+flamegraph.svg

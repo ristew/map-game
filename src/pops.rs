@@ -673,6 +673,17 @@ impl Command for PopMigrateCommand {
     }
 }
 
+pub struct GlobalPopulation(pub usize);
+
+fn global_population_system(
+    mut global_pop: ResMut<GlobalPopulation>,
+    pops: Query<&Pop>,
+) {
+    global_pop.0 = 0;
+    for pop in pops.iter() {
+        global_pop.0 += pop.size;
+    }
+}
 
 pub struct PopPlugin;
 
@@ -681,7 +692,8 @@ impl Plugin for PopPlugin {
         let pop_systems = SystemSet::new()
             .with_system(harvest_system.system().label(DAY_LABEL))
             .with_system(growth_system.system().label(DAY_LABEL))
-            .with_system(pop_migration_system.system().label(DAY_LABEL));
+            .with_system(pop_migration_system.system().label(DAY_LABEL))
+            .with_system(global_population_system.system().label(DAY_LABEL));
             // .with_run_criteria(
             //     FixedTimestep::step(0.0001)
             //         // labels are optional. they provide a way to access the current
@@ -691,6 +703,7 @@ impl Plugin for PopPlugin {
         app
             .add_startup_stage_after(InitStage::LoadMap, InitStage::LoadPops, SystemStage::single_threaded())
             .add_system_set_to_stage(DayStage::Main, pop_systems)
+            .insert_resource(GlobalPopulation(0))
             // .add_system(pop_growth_system.system())
             // .add_system(spawn_pops.system())
             // .add_system(pop_migration_system.system())

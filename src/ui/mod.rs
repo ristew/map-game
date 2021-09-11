@@ -2,7 +2,7 @@ use bevy::{
     prelude::*,
 };
 use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
-use crate::prelude::*;
+use crate::{pops::GlobalPopulation, prelude::*};
 use crate::{PopRef, pops::{Pop, PopFactor}, province::{Province, ProvinceMap}, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 use crate::factor::Factors;
@@ -72,6 +72,7 @@ pub fn change_button_system(
         (Changed<Interaction>, With<Button>),
     >,
     mut map_editor_query: Query<&mut MapEditor>,
+    mut info_box_mode: ResMut<InfoBoxMode>,
     // mut select_modifier: ResMut<SelectModifier>,
 ) {
     for (ui_button, interaction) in interaction_query.iter_mut() {
@@ -93,6 +94,10 @@ pub fn change_button_system(
                     for mut map_editor in map_editor_query.iter_mut() {
                         map_editor.brush_size += v as usize;
                     }
+                },
+                // enter river creation mode
+                UiButtonType::AddRiver => {
+                    *info_box_mode = InfoBoxMode::AddRiverMode;
                 },
                 // UiButtonType::SelectModifier(modifier_type) => {
                 //     *select_modifier = SelectModifier(Some(modifier_type));
@@ -145,6 +150,7 @@ pub struct SelectedInfoText;
 pub enum UiButtonType {
     ChangeTileType(MapTileType),
     BrushSizeType(isize),
+    AddRiver,
     SaveMap,
     // SelectModifier(ModifierType),
  }
@@ -152,6 +158,13 @@ pub struct UiButton(UiButtonType);
 
 pub struct UiBuilder<'a> {
     materials: Res<'a, UiMaterials>,
+}
+
+#[derive(Bundle, Debug)]
+pub struct InfoTagBundle {
+    tag: InfoTag,
+    #[bundle]
+    text: TextBundle,
 }
 
 
@@ -265,6 +278,13 @@ impl <'a> UiBuilder<'a> {
         }
     }
 
+    pub fn info_tag(&self, tag: InfoTag) -> InfoTagBundle {
+        InfoTagBundle {
+            tag,
+            text: self.text_info(""),
+        }
+    }
+
     pub fn button_material(&self, material_type: UiMaterialType) -> ButtonBundle {
         ButtonBundle {
             style: Style {
@@ -303,6 +323,7 @@ pub fn setup_ui_assets(
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum InfoBoxMode {
     MapDrawingMode,
+    AddRiverMode,
     ProvinceInfoMode,
     ModifierSelectList,
     ProvincePopList,
@@ -355,11 +376,30 @@ pub fn map_painting_box(
                     });
             });
             parent.spawn_bundle(builder.button())
+                .insert(UiButton(UiButtonType::AddRiver))
+                .with_children(|parent| {
+                    parent.spawn_bundle(builder.text_info("Add river"));
+                });
+            parent.spawn_bundle(builder.button())
                 .insert(UiButton(UiButtonType::SaveMap))
                 .with_children(|parent| {
                     parent.spawn_bundle(builder.text_info("Save"));
                 });
         });
+    info_box.id()
+}
+
+
+
+pub fn add_river_box(
+    commands: &mut Commands,
+    builder: &UiBuilder,
+) -> Entity {
+    let mut info_box = commands
+        .spawn_bundle(builder.info_box());
+    info_box
+        .insert(UiContainer)
+        .insert(InfoBoxMode::AddRiverMode);
     info_box.id()
 }
 
@@ -373,10 +413,9 @@ pub fn province_info_box(
         .insert(UiContainer)
         .insert(InfoBoxMode::ProvinceInfoMode)
         .with_children(|parent| {
-            parent.spawn_bundle(builder.text_info(""))
-                .insert(InfoTag::SelectedProvinceName);
-            parent.spawn_bundle(builder.text_info(""))
-                .insert(InfoTag::SelectedProvincePopulation);
+            println!("bundle: {:?}", builder.info_tag(InfoTag::SelectedProvinceName));
+            parent.spawn_bundle(builder.info_tag(InfoTag::SelectedProvinceName));
+            parent.spawn_bundle(builder.info_tag(InfoTag::SelectedProvincePopulation));
         })
         ;
     province_info_box.id()
@@ -444,6 +483,9 @@ fn info_box_system(
                 InfoBoxMode::ProvincePopList => {
                     pop_list_box(&mut commands, &builder);
                 },
+                InfoBoxMode::AddRiverMode => {
+                    add_river_box(&mut commands, &builder);
+                },
             }
         }
     }
@@ -459,6 +501,7 @@ pub fn info_tag_system(
     date: Res<CurrentDate>,
     game_speed: Res<GameSpeed>,
     game_paused: Res<GamePaused>,
+    global_population: Res<GlobalPopulation>,
 ) {
     for (info_tag, mut text) in info_tag_query.iter_mut() {
         let info_string = match info_tag {
@@ -469,6 +512,7 @@ pub fn info_tag_system(
                 ),
             &InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             &InfoTag::SelectedProvinceName => {
+                println!("province name??");
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     format!("{:?}\n{:?}", coord, map_tile.tile_type)
                 } else {
@@ -489,16 +533,7 @@ pub fn info_tag_system(
             },
             &InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
             &InfoTag::DateDisplay => format!("({}) {}", game_paused.0.then(|| "p").unwrap_or(format!("{}", game_speed.0).as_str()), *date),
-            &InfoTag::GlobalPopulation => {
-                if !date.is_month {
-                    continue;
-                }
-                let mut world_pop = 0;
-                for province in province_info_query.iter() {
-                    world_pop += province.total_population;
-                }
-                format!("total population: {}", world_pop)
-            }
+            &InfoTag::GlobalPopulation => format!("total population: {}", global_population.0),
             t => format!("{:?}", t),
         };
         text.sections[0].value = info_string;

@@ -1,6 +1,7 @@
 use bevy::ecs::system::Command;
 use bevy::{asset::LoadState, prelude::*, sprite::TextureAtlasBuilder};
 use bevy::app::Plugin;
+use pathfinding::directed::astar;
 use std::collections::VecDeque;
 use std::{collections::{HashMap, HashSet}, convert::TryInto, fs::File, io::{Read, Write}};
 use std::sync::Arc;
@@ -75,7 +76,22 @@ impl MapCoordinate {
         }
     }
 
+    pub fn distance(self, other: MapCoordinate) -> isize {
+        ((self.x - other.x).abs() + (self.y - other.y).abs() + (self.z() - other.z()).abs()) / 2
+    }
 
+    pub fn path_to(self, other: MapCoordinate) -> Vec<MapCoordinate> {
+        astar::astar(
+            &self,
+            |coord| coord.neighbors_iter().map(|coord| (coord, 1)),
+            |coord| coord.distance(self),
+            |coord| *coord == self,
+        ).unwrap().0
+    }
+
+    pub fn hex_side(self, other: MapCoordinate) -> HexSide {
+        HexSide::N
+    }
 
     pub fn from_window_pos(pos: Vec2, ) -> Self {
         Self::from_pixel_pos(pos)
@@ -197,6 +213,16 @@ impl MapTileType {
             _ => 0.0,
         }
     }
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum HexSide {
+    N,
+    NE,
+    SE,
+    S,
+    SW,
+    NW,
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -580,6 +606,43 @@ fn map_tile_type_changed_system(
                 let new_sprite = *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap();
                 tile.index = new_sprite;
             }
+        }
+    }
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum RiverSize {
+    Small,
+    Medium,
+    Large,
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RiverSegment {
+    size: RiverSize,
+    coordinate: MapCoordinate,
+    from: HexSide,
+    to: HexSide,
+}
+
+pub struct River {
+    segments: Vec<RiverSegment>,
+}
+
+impl River {
+    pub fn generate_river_from_points(
+        points: Vec<MapCoordinate>,
+        size: RiverSize,
+    ) -> Self {
+        let mut segments = Vec::new();
+        for i in 0..points.len() - 1 {
+            let p1 = points[i];
+            let p2 = points[i + 1];
+            let path = p1.path_to(p2);
+        }
+        println!("Segements {:?}", segments);
+        Self {
+            segments,
         }
     }
 }

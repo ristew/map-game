@@ -21,3 +21,4 @@ bevy_tilemap = { git = "https://github.com/joshuajbouw/bevy_tilemap" }
 # notify = "5.0.0-pre.11"
 strum = { version = "0.20", features = ["derive"] }
 strum_macros = "0.20"
+pathfinding = "2.2.1"
