@@ -674,6 +674,7 @@ impl Command for PopMigrateCommand {
 }
 
 pub struct GlobalPopulation(pub usize);
+pub struct MaxProvincePopulation(pub usize);
 
 fn global_population_system(
     mut global_pop: ResMut<GlobalPopulation>,

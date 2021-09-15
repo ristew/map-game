@@ -24,7 +24,16 @@ pub mod agent;
 pub mod gameref;
 
 pub mod prelude {
-        pub use crate::{macros::GameRef, PopRef, map::MapCoordinate, settlement::SettlementRef, pops::{Pop, PopFactor, CultureRef, LanguageRef}, probability::individual_event, province::{Province, ProvinceRef}, stage::DayStage, time::{Date, CurrentDate}, gameref::GameRef};
+        pub use crate::PopRef;
+        pub use crate::gameref::GameRef;
+        pub use crate::time::{Date, CurrentDate};
+        pub use crate::stage::{DayStage, DayStageBuilder};
+        pub use crate::province::{Province, ProvinceRef};
+        pub use crate::probability::individual_event;
+        pub use crate::pops::{Pop, PopFactor, CultureRef, LanguageRef};
+        pub use crate::settlement::SettlementRef;
+        pub use crate::map::MapCoordinate;
+        pub use crate::macros::GameRef;
         pub use crate::constant::DAY_LABEL;
         pub use crate::factor::{FactorType, Factors, Factored};
 }

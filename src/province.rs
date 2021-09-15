@@ -55,17 +55,17 @@ fn province_pop_tracking_system(
     mut commands: Commands,
     load_map: Res<LoadMap>,
     pop_query: Query<(Entity, &Pop, &ProvinceRef)>,
-    mut province_query: Query<(&mut Province, &mut ProvincePops)>,
+    mut province_query: Query<(&mut Province, &mut ProvincePops, &MapCoordinate)>,
 ) {
     if load_map.0 != None {
         return;
     }
-    for (mut province, mut pops) in province_query.iter_mut() {
+    for (mut province, mut pops, _) in province_query.iter_mut() {
         province.total_population = 0;
         pops.0 = vec![];
     }
     for (ent, pop, pop_province) in pop_query.iter() {
-        let (mut province, mut pops) = province_query.get_mut(pop_province.entity()).unwrap();
+        let (mut province, mut pops, coord) = province_query.get_mut(pop_province.entity()).unwrap();
         province.total_population += pop.size;
         pops.0.push(ent);
     }

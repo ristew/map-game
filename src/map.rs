@@ -689,14 +689,17 @@ fn show_overlay_system(
 }
 
 pub fn pop_overlay_system(
+    mut frame: Local<usize>,
     mut overlay_command: ResMut<OverlayCommand>,
     tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
     province_map: Res<ProvinceMap>,
     province_query: Query<&Province>,
     current_overlay: Res<CurrentOverlayType>,
     date: Res<CurrentDate>,
+    mut tile_map_query: Query<&mut Tilemap>,
 ) {
-    if (date.is_week || current_overlay.is_changed()) && *current_overlay == CurrentOverlayType::ProvincePop {
+    *frame += 1;
+    if *frame % 20 == 0 && *current_overlay == CurrentOverlayType::ProvincePop {
         let mut pop_map = HashMap::new();
         let mut max_pop = 0;
         for coord in tile_coord_query.iter() {
@@ -706,18 +709,20 @@ pub fn pop_overlay_system(
                 max_pop = pop;
             }
         }
-        let mut tint_map = HashMap::new();
         for (coord, pop) in pop_map.iter() {
-            if *pop > 0 {
+            let color = if *pop > 0 {
                 let brightness = *pop as f32 / max_pop as f32;
-                let tint = Color::rgb(brightness, 0.2, 0.2);
-                tint_map.insert(**coord, tint);
+                Color::rgb(brightness, 0.2, 0.2)
             } else {
-                let tint = Color::rgb(0.0, 0.2, 0.2);
-                tint_map.insert(**coord, tint);
+                Color::rgb(0.0, 0.2, 0.2)
+            };
+            let point = coord.point3();
+            for mut tile_map in tile_map_query.iter_mut() {
+                let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
+                tile.color = color;
             }
         }
-        *overlay_command = OverlayCommand::Map(tint_map);
+        // *overlay_command = OverlayCommand::Map(tint_map);
     } else if *current_overlay == CurrentOverlayType::None && current_overlay.is_changed() {
         *overlay_command = OverlayCommand::Clear;
     }
