@@ -144,7 +144,7 @@ impl FactorType for PolityFactor {
     }
 }
 
-#[derive(GameRef)]
+#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct PolityRef(pub Entity);
 
 // pub type PolityQuery<'w> = Query<'w, (&'w Polity)>;
@@ -537,12 +537,13 @@ pub struct PopSeekMigrationCommand {
 impl Command for PopSeekMigrationCommand {
     fn write(self: Box<Self>, world: &mut World) {
         let pop_size = self.pop.get::<Pop>(world).size;
-        let coordinate = self
+        let coordinate = *self
             .pop
-            .get::<ProvinceRef>(world)
-            .get::<MapCoordinate>(world);
+            .accessor(world)
+            .get_ref::<ProvinceRef>()
+            .get::<MapCoordinate>();
         let random_point = coordinate.random_local();
-        if random_point == *coordinate {
+        if random_point == coordinate {
             // got unlucky, just die
             return;
         }

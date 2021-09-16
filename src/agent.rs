@@ -2,6 +2,9 @@ use bevy::{ecs::system::{Command, CommandQueue}, prelude::*};
 
 use crate::{map::SpawnSettlementCommand, pops::{PopLanguage, PopSeekMigrationCommand}, prelude::*, probability::logistic};
 
+pub struct ValueAgent {
+
+}
 
 pub trait Agent {
     fn think(&self, world: &mut World) -> Vec<Box<dyn Command>>;
