@@ -39,9 +39,11 @@ impl GameEvent for PopStarvedEvent {
         PopStarvedChoice::iter().collect::<Vec<_>>()
     }
 
-    fn weigh_choice(&self, agent: &ValueAgent, choice: PopStarvedChoice) -> f32 {
+    fn weigh_choice(&self, agent: &ValueAgent, world: &World, choice: PopStarvedChoice) -> f32 {
         match choice {
-            PopStarvedChoice::SendFullRelief => todo!(),
+            PopStarvedChoice::SendFullRelief => {
+
+            },
             PopStarvedChoice::SendSomeHelp => todo!(),
             PopStarvedChoice::Ignore => todo!(),
         }
@@ -57,5 +59,5 @@ pub trait GameEvent {
     type Choice;
     fn description(&self, world: &World) -> String;
     fn choices(&self) -> Vec<Self::Choice>;
-    fn weigh_choice(&self, agent: &ValueAgent, choice: Self::Choice) -> f32;
+    fn weigh_choice(&self, agent: &ValueAgent, world: &World, choice: Self::Choice) -> f32;
 }
