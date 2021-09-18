@@ -178,18 +178,27 @@ pub fn info_box_change_system(
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CurrentOverlayType {
     ProvincePop,
+    Polity,
     None,
 }
 
 pub fn overlay_input_system(
+    mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
     mut current_overlay: ResMut<CurrentOverlayType>,
+    mut overlay_command: ResMut<OverlayCommand>,
 ) {
     if keyboard_input.pressed(KeyCode::P) {
         *current_overlay = CurrentOverlayType::ProvincePop;
+        *overlay_command = OverlayCommand::Clear;
+    }
+    if keyboard_input.pressed(KeyCode::I) {
+        *current_overlay = CurrentOverlayType::Polity;
+        *overlay_command = OverlayCommand::Clear;
     }
     if keyboard_input.pressed(KeyCode::O) {
         *current_overlay = CurrentOverlayType::None;
+        *overlay_command = OverlayCommand::Clear;
     }
 }
 

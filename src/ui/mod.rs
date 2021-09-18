@@ -512,7 +512,6 @@ pub fn info_tag_system(
                 ),
             &InfoTag::ProvinceName(coord) => format!("{:?}", coord),
             &InfoTag::SelectedProvinceName => {
-                println!("province name??");
                 if let Some((coord, map_tile, _)) = selected_query.iter().next() {
                     format!("{:?}\n{:?}", coord, map_tile.tile_type)
                 } else {

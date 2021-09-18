@@ -147,6 +147,15 @@ impl FactorType for PolityFactor {
 #[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct PolityRef(pub Entity);
 
+impl PolityRef {
+    pub fn color(&self) -> Color {
+        let r = (self.0.id() % 8).pow(3) % 8;
+        let b = (self.0.id() % 8).pow(2) % 8;
+        let g = self.0.id() % 8;
+        Color::rgb(r as f32 / 8.0, g as f32 / 8.0, b as f32 / 8.0)
+    }
+}
+
 // pub type PolityQuery<'w> = Query<'w, (&'w Polity)>;
 
 pub struct Polity {
@@ -555,9 +564,13 @@ impl Command for PopSeekMigrationCommand {
             return;
         }
         let pref = province_maybe.unwrap();
+        if !pref.get::<MapTile>(world).tile_type.inhabitable() {
+            return;
+        }
         let mut target_value = self.pressure.powf(1.5);
-        for settlement in pref.get::<ProvinceSettlements>(world).0.iter() {
+        if let Some(settlement) = pref.try_get::<SettlementRef>(world) {
             println!("settlement?? {:?}", settlement);
+            return;
             target_value -= 1.0;
             if settlement.get::<CultureRef>(world) != self.pop.get::<CultureRef>(world) {
                 target_value -= 2.0;
@@ -626,13 +639,13 @@ pub struct MigrationStatus {
 
 fn pop_migration_system(
     mut commands: Commands,
-    mut migrating_pops: Query<(Entity, &mut Pop, &MigrationStatus, &PopLanguage, &CultureRef)>,
+    mut migrating_pops: Query<(Entity, &mut Pop, &MigrationStatus, &PopLanguage, &CultureRef, &PolityRef)>,
     date: Res<CurrentDate>,
 ) {
     if !date.is_day {
         return;
     }
-    for (pop_ent, mut pop, migration_status, language, &culture) in migrating_pops.iter_mut() {
+    for (pop_ent, mut pop, migration_status, language, &culture, &polity) in migrating_pops.iter_mut() {
         if migration_status.arrival.is_after(date.date) {
             if let Some(settlement) = migration_status.settlement {
                 commands.add(SpawnPopCommand {
@@ -640,6 +653,7 @@ fn pop_migration_system(
                     settlement,
                     language: language.language,
                     culture,
+                    polity,
                     size: migration_status.migrating,
                 })
             } else {
@@ -647,6 +661,7 @@ fn pop_migration_system(
                     province: migration_status.dest,
                     language: language.language,
                     culture,
+                    polity,
                     size: migration_status.migrating,
                 })
             }

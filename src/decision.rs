@@ -31,7 +31,7 @@ impl GameEvent for PopStarvedEvent {
         format!(
             "{} people in {} starved!",
             self.amount,
-            pop.get_ref::<SettlementRef>().get::<Settlement>().name,
+            pop.settlement().name(),
         )
     }
 
@@ -40,9 +40,11 @@ impl GameEvent for PopStarvedEvent {
     }
 
     fn weigh_choice(&self, agent: &ValueAgent, world: &World, choice: PopStarvedChoice) -> f32 {
+        let pop = self.pop.accessor(world);
+        let pop_size = pop.size();
         match choice {
             PopStarvedChoice::SendFullRelief => {
-
+                0.0
             },
             PopStarvedChoice::SendSomeHelp => todo!(),
             PopStarvedChoice::Ignore => todo!(),

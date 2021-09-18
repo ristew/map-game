@@ -1,6 +1,6 @@
 use std::{hash::Hash, fmt::Debug};
 use bevy::{ecs::component::Component, prelude::*};
-use crate::prelude::*;
+use crate::{prelude::*, settlement::Settlement};
 
 pub struct GameRefAccessor<'a, T> where T: GameRef {
     gref: T,
@@ -21,6 +21,25 @@ impl<'a, T> GameRefAccessor<'a, T> where T: GameRef {
 
     pub fn get_ref<C>(&'a self) -> GameRefAccessor<'a, C> where C: GameRef + Component {
         self.gref.get::<C>(self.world).accessor(self.world)
+    }
+}
+
+pub type PopAccessor<'a> = GameRefAccessor<'a, PopRef>;
+pub type SettlementAccessor<'a> = GameRefAccessor<'a, SettlementRef>;
+
+impl<'a> PopAccessor<'a> {
+    pub fn size(&self) -> usize {
+        self.get::<Pop>().size
+    }
+
+    pub fn settlement(&self) -> SettlementAccessor {
+        self.get_ref::<SettlementRef>()
+    }
+}
+
+impl<'a> SettlementAccessor<'a> {
+    pub fn name(&self) -> &String {
+        &self.get::<Settlement>().name
     }
 }
 

@@ -213,6 +213,14 @@ impl MapTileType {
             _ => 0.0,
         }
     }
+
+    pub fn inhabitable(&self) -> bool {
+        match self {
+            &MapTileType::Desert => false,
+            &MapTileType::Water => false,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -315,6 +323,7 @@ impl Command for SpawnCultureCommand {
     fn write(self: Box<Self>, world: &mut World) {
         let language = Language::new();
         let name = language.generate_name(2);
+        let mut polity_name = language.generate_name(2);
         let language_ent = {
             let mut language_builder = world.spawn();
             language_builder
@@ -329,10 +338,18 @@ impl Command for SpawnCultureCommand {
                 });
             culture_builder.id()
         };
+        let mut polity_ent = {
+            world
+                .spawn()
+                .insert(Polity { name: polity_name })
+                .id()
+        };
+        let polity = PolityRef(polity_ent);
         let spawn_pop_command = SpawnSettlementCommand {
             province: self.province,
             language: LanguageRef(language_ent),
             culture: CultureRef(culture_ent),
+            polity,
             size: 100,
         };
 
@@ -345,11 +362,14 @@ pub struct SpawnSettlementCommand {
     pub language: LanguageRef,
     pub culture: CultureRef,
     pub size: usize,
+    pub polity: PolityRef,
 }
 
 impl Command for SpawnSettlementCommand {
     fn write(self: Box<Self>, world: &mut World) {
-        let name = world.get::<Language>(self.language.0).unwrap().generate_name(2);
+        // TODO: only spawn polity if not in parent admin zone
+        let name = self.language.get::<Language>(world).generate_name(2);
+        let coordinate = *self.province.get::<MapCoordinate>(world);
         let mut factors = Factors::new();
         factors.add(SettlementFactor::CarryingCapacity, 100.0);
         let settlement = SettlementRef({
@@ -361,16 +381,23 @@ impl Command for SpawnSettlementCommand {
                     },
                     pops: SettlementPops(Vec::new()),
                     province: self.province,
+                    polity: self.polity,
+                    coordinate,
                     factors,
                 })
                 .id()
         });
+        world
+            .get_entity_mut(self.province.entity())
+            .unwrap()
+            .insert(settlement);
         Box::new(SpawnPopCommand {
             province: self.province,
             settlement,
             language: self.language,
             culture: self.culture,
             size: self.size,
+            polity: self.polity,
         }).write(world);
     }
 }
@@ -381,26 +408,19 @@ pub struct SpawnPopCommand {
     pub language: LanguageRef,
     pub culture: CultureRef,
     pub size: usize,
+    pub polity: PolityRef,
 }
 
 impl Command for SpawnPopCommand {
     fn write(self: Box<Self>, world: &mut World) {
-        let name = world.get::<Language>(self.language.0).unwrap().generate_name(2);
-        let mut polity_ent = {
-            world
-                .spawn()
-                .insert(Polity { name })
-                .id()
-        };
         let pop_ent = {
             let bundle = {
-                let polity = PolityRef(polity_ent);
                 PopBundle {
                     base: Pop { size: self.size },
                     province: self.province,
                     culture: self.culture,
                     settlement: self.settlement,
-                    polity,
+                    polity: self.polity,
                     language: PopLanguage {
                         language: self.language,
                         drift: 0.0,
@@ -557,11 +577,10 @@ fn build_world(
                             total_population: 0,
                             fertility: 30.0,
                         })
-                        .insert(ProvinceSettlements(Vec::new()))
                         .insert(ProvincePops(Vec::new()));
                     ecmds.id()
                 };
-                if individual_event(0.1) {
+                if individual_event(0.1) && esd.map_tile.unwrap().tile_type.inhabitable() {
                     commands.add(SpawnCultureCommand {
                         province: ProvinceRef(province_ent),
                     });
@@ -723,8 +742,30 @@ pub fn pop_overlay_system(
             }
         }
         // *overlay_command = OverlayCommand::Map(tint_map);
-    } else if *current_overlay == CurrentOverlayType::None && current_overlay.is_changed() {
-        *overlay_command = OverlayCommand::Clear;
+    }
+}
+
+pub fn polity_overlay_system(
+    mut frame: Local<usize>,
+    mut overlay_command: ResMut<OverlayCommand>,
+    tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
+    polity_query: Query<(&PolityRef, &MapCoordinate)>,
+    current_overlay: Res<CurrentOverlayType>,
+    date: Res<CurrentDate>,
+    mut tile_map_query: Query<&mut Tilemap>,
+) {
+    *frame += 1;
+    if *frame % 20 == 0 && *current_overlay == CurrentOverlayType::Polity {
+        // println!("polity overlay change");
+        for (&polity, &coordinate) in polity_query.iter() {
+            let color = polity.color();
+            // println!("polity overlay: {:?} {:?} {:?}", polity, coordinate, color);
+            let point = coordinate.point3();
+            for mut tile_map in tile_map_query.iter_mut() {
+                let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
+                tile.color = color;
+            }
+        }
     }
 }
 
@@ -746,6 +787,7 @@ impl Plugin for MapPlugin {
             .add_system(load_tile_map_system.system())
             .add_system(build_world.system())
             .add_system(pop_overlay_system.system())
+            .add_system(polity_overlay_system.system())
             .add_system(show_overlay_system.system())
             .add_system_to_stage(DayStage::Main, map_tile_type_changed_system.system())
             .add_system(position_translation.system());

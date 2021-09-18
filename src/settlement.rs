@@ -55,7 +55,9 @@ pub struct SettlementBundle {
     pub info: Settlement,
     pub pops: SettlementPops,
     pub province: ProvinceRef,
+    pub polity: PolityRef,
     pub factors: Factors<SettlementFactor>,
+    pub coordinate: MapCoordinate,
 }
 
 fn settlement_info_system(
