@@ -13,7 +13,7 @@ pub struct CalledToArmsEvent {
 // Some of our countrymen went hungry
 pub struct PopStarvedEvent {
     pop: PopRef,
-    amount: usize,
+    amount: isize,
 }
 
 #[derive(EnumIter)]

@@ -10,7 +10,7 @@ use crate::time::Date;
 
 pub struct Settlement {
     pub name: String,
-    pub population: usize,
+    pub population: isize,
 }
 
 pub struct SettlementPops(pub Vec<PopRef>);
@@ -23,7 +23,7 @@ impl SettlementPops {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum SettlementFactor {
-    CarryingCapacity
+    CarryingCapacity,
 }
 
 impl FactorType for SettlementFactor {
@@ -32,9 +32,15 @@ impl FactorType for SettlementFactor {
             _ => FactorDecay::None,
         }
     }
+
+    fn default_amount(&self) -> f32 {
+        match self {
+            _ => 0.0,
+        }
+    }
 }
 
-#[derive(GameRef, Copy, Clone, Debug)]
+#[game_ref]
 pub struct SettlementRef(pub Entity);
 
 

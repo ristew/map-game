@@ -192,7 +192,7 @@ impl MapTileType {
         }
     }
 
-    pub fn sprite(&self) -> usize {
+    pub fn sprite(&self) -> isize {
         match self {
             MapTileType::Plains => 3,
             MapTileType::Water => 5,
@@ -361,7 +361,7 @@ pub struct SpawnSettlementCommand {
     pub province: ProvinceRef,
     pub language: LanguageRef,
     pub culture: CultureRef,
-    pub size: usize,
+    pub size: isize,
     pub polity: PolityRef,
 }
 
@@ -407,7 +407,7 @@ pub struct SpawnPopCommand {
     pub settlement: SettlementRef,
     pub language: LanguageRef,
     pub culture: CultureRef,
-    pub size: usize,
+    pub size: isize,
     pub polity: PolityRef,
 }
 
@@ -708,7 +708,7 @@ fn show_overlay_system(
 }
 
 pub fn pop_overlay_system(
-    mut frame: Local<usize>,
+    mut frame: Local<isize>,
     mut overlay_command: ResMut<OverlayCommand>,
     tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
     province_map: Res<ProvinceMap>,
@@ -746,7 +746,7 @@ pub fn pop_overlay_system(
 }
 
 pub fn polity_overlay_system(
-    mut frame: Local<usize>,
+    mut frame: Local<isize>,
     mut overlay_command: ResMut<OverlayCommand>,
     tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
     polity_query: Query<(&PolityRef, &MapCoordinate)>,

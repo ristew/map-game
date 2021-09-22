@@ -50,7 +50,7 @@ pub enum UiMaterialType {
 #[derive(Debug)]
 pub struct MapEditor {
     change_tile_type: Option<MapTileType>,
-    brush_size: usize,
+    brush_size: isize,
 }
 
 impl Default for MapEditor {
@@ -92,7 +92,7 @@ pub fn change_button_system(
                 },
                 UiButtonType::BrushSizeType(v) => {
                     for mut map_editor in map_editor_query.iter_mut() {
-                        map_editor.brush_size += v as usize;
+                        map_editor.brush_size += v;
                     }
                 },
                 // enter river creation mode

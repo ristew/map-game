@@ -51,7 +51,7 @@ fn clear_messages(
 }
 
 pub struct PopTransfer {
-    size: usize,
+    size: isize,
     src: Entity,
     dest: Entity,
 }

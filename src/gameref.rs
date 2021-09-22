@@ -28,7 +28,7 @@ pub type PopAccessor<'a> = GameRefAccessor<'a, PopRef>;
 pub type SettlementAccessor<'a> = GameRefAccessor<'a, SettlementRef>;
 
 impl<'a> PopAccessor<'a> {
-    pub fn size(&self) -> usize {
+    pub fn size(&self) -> isize {
         self.get::<Pop>().size
     }
 
@@ -43,7 +43,11 @@ impl<'a> SettlementAccessor<'a> {
     }
 }
 
-pub trait GameRef: Copy + Clone + Debug {
+pub trait GameRefQuery<T> where T: GameRef {
+    fn get_refs(&self) -> Vec<T>;
+}
+
+pub trait GameRef: Copy + Clone + Debug + Send + Sync + Hash + Eq {
     type Factor: FactorType + Copy + Eq + Hash + Send + Sync + 'static;
 
     fn entity(&self) -> Entity;
@@ -74,5 +78,11 @@ pub trait GameRef: Copy + Clone + Debug {
 
     fn accessor<'a>(&self, world: &'a World) -> GameRefAccessor<'a, Self> {
         GameRefAccessor::new(*self, world)
+    }
+}
+
+impl<T> GameRefQuery<T> for T where T: GameRef + Sized {
+    fn get_refs(&self) -> Vec<T> {
+        vec![*self]
     }
 }

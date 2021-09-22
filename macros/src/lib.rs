@@ -10,7 +10,7 @@ pub fn game_ref(attr: TokenStream, input: TokenStream) -> TokenStream {
     let name = &parsed_input.ident;
 
     let expanded = quote! {
-        #[derive(GameRef)]
+        #[derive(GameRef, PartialEq, Hash, Eq, Copy, Clone, Debug)]
         #parsed_input
     };
 

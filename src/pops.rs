@@ -16,7 +16,7 @@ use crate::settlement::*;
 pub enum PopFactor {
     Prominence,
     Demand(GoodType),
-    MigrationDesire,
+    PopulationPressure,
 }
 
 impl FactorType for PopFactor {
@@ -24,9 +24,16 @@ impl FactorType for PopFactor {
         match *self {
             PopFactor::Prominence => FactorDecay::Exponential(0.01),
             PopFactor::Demand(good) => FactorDecay::None,
-            PopFactor::MigrationDesire => FactorDecay::None,
+            PopFactor::PopulationPressure => FactorDecay::None,
         }
     }
+
+    fn default_amount(&self) -> f32 {
+        match self {
+            _ => 0.0,
+        }
+    }
+
 }
 
 
@@ -48,14 +55,14 @@ pub struct PopBundle {
     pub kid_buffer: KidBuffer,
 }
 
-#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
+#[game_ref]
 pub struct PopRef(pub Entity);
 
 
 // pub type PopQuery<'w> = Query<'w, (&'w Pop, &'w FarmingPop, &'w MapCoordinate)>;
 
 pub struct Pop {
-    pub size: usize,
+    pub size: isize,
 }
 
 pub struct PopLanguage {
@@ -75,18 +82,18 @@ pub struct PopPolity(pub Entity);
 
 
 #[derive(Debug)]
-pub struct KidBuffer(pub VecDeque<usize>);
+pub struct KidBuffer(pub VecDeque<isize>);
 
 impl KidBuffer {
     pub fn new() -> Self {
         Self(VecDeque::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn size(&self) -> isize {
         self.0.iter().fold(0, |acc, e| acc + e)
     }
 
-    pub fn spawn(&mut self, babies: usize) -> usize {
+    pub fn spawn(&mut self, babies: isize) -> isize {
         // println!("spawn babies {}", babies);
         self.0.push_front(babies);
         // println!("{:?}", self);
@@ -97,7 +104,7 @@ impl KidBuffer {
         }
     }
 
-    pub fn starve(&mut self) -> usize {
+    pub fn starve(&mut self) -> isize {
         let cohort = sample(3.0).abs().min(12.0) as usize;
         if self.0.len() > cohort {
             let cohort_size = self.0[cohort];
@@ -124,9 +131,15 @@ impl FactorType for CultureFactor {
     fn base_decay(&self) -> FactorDecay {
         todo!()
     }
+
+    fn default_amount(&self) -> f32 {
+        match self {
+            _ => 0.0,
+        }
+    }
 }
 
-#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
+#[game_ref]
 pub struct CultureRef(pub Entity);
 pub struct Culture {
     pub name: String,
@@ -142,9 +155,15 @@ impl FactorType for PolityFactor {
     fn base_decay(&self) -> FactorDecay {
         todo!()
     }
+
+    fn default_amount(&self) -> f32 {
+        match self {
+            _ => 0.0,
+        }
+    }
 }
 
-#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
+#[game_ref]
 pub struct PolityRef(pub Entity);
 
 impl PolityRef {
@@ -162,6 +181,16 @@ pub struct Polity {
     pub name: String,
 }
 
+pub struct Hunger {
+
+}
+
+pub fn pop_eat_system(
+    date: Res<CurrentDate>,
+    mut pop_query: Query<(&Factors<PopFactor>)>,
+) {
+
+}
 
 pub fn growth_system(
     mut commands: Commands,
@@ -176,13 +205,9 @@ pub fn growth_system(
         let babies = positive_isample(2, pop.size * 4 / 100);
         let deaths = positive_isample(2, pop.size / 50);
         let new = kb.spawn(babies) as isize - deaths as isize;
-        if new > 0 {
-            pop.size = pop.size + new as usize;
-        } else {
-            println!("lose people:? {}", new);
-            if pop.size < -new as usize {
-                commands.add(PopDieCommand(PopRef(pop_ent)));
-            }
+        pop.size = pop.size + new;
+        if pop.size < 0 {
+            commands.add(PopDieCommand(PopRef(pop_ent)));
         }
     }
 }
@@ -217,16 +242,17 @@ pub fn harvest_system(
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
         // println!("size {} comf {}", settlement_size, comfortable_limit);
         if settlement_size as f32 > comfortable_limit {
-            pop_factors.add(PopFactor::MigrationDesire, 0.2);
+            pop_factors.add(PopFactor::PopulationPressure, 0.2);
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
             //     pressure: (pop_size / comfortable_limit).powi(2),
             // }))
         } else {
-            pop_factors.add(PopFactor::MigrationDesire, -0.2);
+            pop_factors.add(PopFactor::PopulationPressure, -0.2);
         }
         if settlement_size as f32 > carrying_capacity {
+            println!("less is farmed");
             farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
         }
         if random::<f32>() > 0.9 {
@@ -299,7 +325,7 @@ pub struct Language {
     pub end_consonants: Vec<String>,
 }
 
-#[derive(GameRef, PartialEq, Eq, Copy, Clone, Debug)]
+#[game_ref]
 pub struct LanguageRef(pub Entity);
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
@@ -310,6 +336,12 @@ pub enum LanguageFactor {
 impl FactorType for LanguageFactor {
     fn base_decay(&self) -> FactorDecay {
         todo!()
+    }
+
+    fn default_amount(&self) -> f32 {
+        match self {
+            _ => 0.0,
+        }
     }
 }
 
@@ -375,7 +407,7 @@ impl Language {
         }
     }
 
-    pub fn generate_name(&self, max_middle: usize) -> String {
+    pub fn generate_name(&self, max_middle: isize) -> String {
         let mut name: String = String::new();
         name += &self.maybe_vowel(0.3).unwrap_or("".to_owned());
         name += &sample_list(&self.initial_consonants);
@@ -591,7 +623,7 @@ impl Command for PopSeekMigrationCommand {
                 }
             };
             // println!("lose {} people of {}", migration_status.migrating, pop_size);
-            self.pop.clear_factor(world, PopFactor::MigrationDesire);
+            self.pop.clear_factor(world, PopFactor::PopulationPressure);
             world
                 .get_mut::<Pop>(self.pop.entity())
                 .unwrap()
@@ -632,7 +664,7 @@ impl Command for PopSeekMigrationCommand {
 
 pub struct MigrationStatus {
     pub dest: ProvinceRef,
-    pub migrating: usize,
+    pub migrating: isize,
     pub settlement: Option<SettlementRef>,
     pub arrival: Date,
 }
@@ -689,8 +721,8 @@ impl Command for PopMigrateCommand {
     }
 }
 
-pub struct GlobalPopulation(pub usize);
-pub struct MaxProvincePopulation(pub usize);
+pub struct GlobalPopulation(pub isize);
+pub struct MaxProvincePopulation(pub isize);
 
 fn global_population_system(
     mut global_pop: ResMut<GlobalPopulation>,

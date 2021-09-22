@@ -18,6 +18,7 @@ pub enum FactorEffect {
 
 pub trait FactorType {
     fn base_decay(&self) -> FactorDecay;
+    fn default_amount(&self) -> f32;
 }
 
 pub enum FactorDecay {
@@ -121,12 +122,23 @@ impl Factored for PopRef {
     type FactorType = PopFactor;
 
     fn factor(&self, world: &World, factor: Self::FactorType) -> f32 {
-        world.get::<Factors<Self::FactorType>>(self.0).unwrap().factor(factor)
+        world.get::<Factors<Self::FactorType>>(self.0).map(|f| f.factor(factor)).unwrap_or(factor.default_amount())
     }
 
     fn add_factor(&self, world: &mut World, factor: Self::FactorType, amt: f32) -> f32 {
         world.get_mut::<Factors<Self::FactorType>>(self.0).unwrap().add(factor, amt);
         self.factor(world, factor)
+    }
+}
+
+fn decay_factors_system<T> (
+    mut factors: Query<&mut Factors<T::Factor>>,
+    date: Res<CurrentDate>,
+) where T: GameRef {
+    if date.is_month {
+        for mut fs in factors.iter_mut() {
+            fs.decay();
+        }
     }
 }
 
@@ -140,5 +152,14 @@ impl<T> Command for AddFactorCommand<T> where T: Factored + Sized + Debug + Send
     fn write(self: Box<Self>, world: &mut World) {
         println!("set factor {:?} {:?} {}", self.target, self.factor, self.amt);
         self.target.add_factor(world, self.factor, self.amt);
+    }
+}
+
+pub struct FactorPlugin;
+
+impl Plugin for FactorPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app
+            ;
     }
 }

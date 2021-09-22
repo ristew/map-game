@@ -6,12 +6,12 @@ use bevy::{ecs::system::{Command, SystemParam}, prelude::*};
 use crate::{map::*, pops::*, settlement::Settlements, stage::*};
 use crate::factor::*;
 
-#[derive(GameRef, Debug, Copy, Clone)]
+#[game_ref]
 pub struct ProvinceRef(pub Entity);
 
 #[derive(Debug)]
 pub struct Province {
-    pub total_population: usize,
+    pub total_population: isize,
     pub fertility: f64,
 }
 
@@ -28,6 +28,12 @@ pub enum ProvinceFactor {
 impl FactorType for ProvinceFactor {
     fn base_decay(&self) -> FactorDecay {
         FactorDecay::Linear(0.001)
+    }
+
+    fn default_amount(&self) -> f32 {
+        match self {
+            _ => 0.0,
+        }
     }
 }
 

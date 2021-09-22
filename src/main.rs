@@ -23,6 +23,7 @@ pub mod factor;
 pub mod agent;
 pub mod gameref;
 pub mod decision;
+// pub mod modifier;
 
 pub mod prelude {
         pub use crate::PopRef;

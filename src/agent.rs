@@ -13,7 +13,7 @@ pub trait Agent {
 
 impl Agent for PopRef {
     fn think(&self, world: &mut World) -> Vec<Box<dyn Command>> {
-        let migration_factor = self.factor(world, PopFactor::MigrationDesire);
+        let migration_factor = self.factor(world, PopFactor::PopulationPressure);
         if migration_factor > 1.0 && individual_event(logistic(migration_factor)) {
             // bad example
             // println!("try migrate {:?} {:?}", self, self.get::<ProvinceRef>(world).get::<MapCoordinate>(world));

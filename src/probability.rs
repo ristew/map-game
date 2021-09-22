@@ -33,8 +33,8 @@ pub fn dev_mean_sample(stddev: f32, mean: f32) -> f32 {
     thread_rng().sample::<f32, StandardNormal>(StandardNormal) * stddev + mean
 }
 
-pub fn positive_isample(stddev: usize, mean: usize) -> usize {
-    dev_mean_sample(stddev as f32, mean as f32).max(0.0).round() as usize
+pub fn positive_isample(stddev: isize, mean: isize) -> isize {
+    dev_mean_sample(stddev as f32, mean as f32).max(0.0).round() as isize
 }
 
 pub fn sample(stddev: f32) -> f32 {
