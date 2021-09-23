@@ -8,6 +8,7 @@ use crate::factor::*;
 use crate::stage::DayStage;
 use crate::time::Date;
 
+// For a hex with r=5, the area is ~65km2, 6500 hectares, up to 650 comfortable farms
 pub struct Settlement {
     pub name: String,
     pub population: isize,

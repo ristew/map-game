@@ -662,12 +662,15 @@ impl Command for PopSeekMigrationCommand {
     }
 }
 
+
+
 pub struct MigrationStatus {
     pub dest: ProvinceRef,
     pub migrating: isize,
     pub settlement: Option<SettlementRef>,
     pub arrival: Date,
 }
+
 
 fn pop_migration_system(
     mut commands: Commands,

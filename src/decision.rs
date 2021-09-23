@@ -52,6 +52,12 @@ impl GameEvent for PopStarvedEvent {
     }
 }
 
+// My liege!
+pub struct HighPopPressureEvent {
+    pop: PopRef,
+    settlement: SettlementRef,
+}
+
 pub struct GameEventMeta {
     // added to final uncertainty to pass AI threshold
     importance: f32,

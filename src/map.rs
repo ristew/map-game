@@ -465,7 +465,7 @@ struct SpriteHandles {
 }
 
 #[derive(Default, Clone)]
-struct TileSpriteIndices(HashMap<MapTileType, usize>);
+pub struct TileSpriteIndices(pub HashMap<MapTileType, usize>);
 
 fn load_tile_map_system(
     mut commands: Commands,
@@ -501,6 +501,7 @@ fn load_tile_map_system(
         load_tile_sprite_index!(Desert);
         load_tile_sprite_index!(Mountain);
         load_tile_sprite_index!(Water);
+        load_tile_sprite_index!(None);
         let atlas_handle = texture_atlases.add(texture_atlas);
         let tilemap = Tilemap::builder()
             .auto_chunk()
@@ -676,6 +677,7 @@ fn show_overlay_system(
     overlay_command: Res<OverlayCommand>,
     load_map: Res<LoadMap>,
     date: Res<CurrentDate>,
+    tile_sprite_indices: Res<TileSpriteIndices>,
     mut tile_map_query: Query<&mut Tilemap>,
 ) {
     if load_map.0 != None {
@@ -689,6 +691,8 @@ fn show_overlay_system(
                     for mut tile_map in tile_map_query.iter_mut() {
                         let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
                         tile.color = *color;
+                        let sprite_index = *tile_sprite_indices.0.get(&MapTileType::None).unwrap();
+                        tile.index = sprite_index;
                     }
                 }
             }
@@ -700,6 +704,8 @@ fn show_overlay_system(
                     for mut tile_map in tile_map_query.iter_mut() {
                         let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
                         tile.color = Color::WHITE;
+                        let sprite_index = *tile_sprite_indices.0.get(&map_tile.tile_type).unwrap();
+                        tile.index = sprite_index;
                     }
                 }
             }
@@ -748,6 +754,7 @@ pub fn pop_overlay_system(
 pub fn polity_overlay_system(
     mut frame: Local<isize>,
     mut overlay_command: ResMut<OverlayCommand>,
+    tile_sprite_indices: Res<TileSpriteIndices>,
     tile_coord_query: Query<&MapCoordinate, With<MapTile>>,
     polity_query: Query<(&PolityRef, &MapCoordinate)>,
     current_overlay: Res<CurrentOverlayType>,
@@ -764,6 +771,8 @@ pub fn polity_overlay_system(
             for mut tile_map in tile_map_query.iter_mut() {
                 let mut tile = tile_map.get_tile_mut(point, 0).unwrap();
                 tile.color = color;
+                let sprite_index = *tile_sprite_indices.0.get(&MapTileType::None).unwrap();
+                tile.index = sprite_index;
             }
         }
     }
