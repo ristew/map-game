@@ -53,9 +53,31 @@ impl GameEvent for PopStarvedEvent {
 }
 
 // My liege!
-pub struct HighPopPressureEvent {
+pub struct PopulationPressureEvent {
     pop: PopRef,
     settlement: SettlementRef,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum PopulationPressureChoice {
+    SeekNewVillage,
+    Ignore,
+}
+
+impl GameEvent for PopulationPressureEvent {
+    type Choice = PopulationPressureChoice;
+
+    fn description(&self, world: &World) -> String {
+        format!("under pressure {:?} of {:?}", self.pop, self.settlement)
+    }
+
+    fn choices(&self) -> Vec<Self::Choice> {
+        todo!()
+    }
+
+    fn weigh_choice(&self, agent: &ValueAgent, world: &World, choice: Self::Choice) -> f32 {
+        todo!()
+    }
 }
 
 pub struct GameEventMeta {

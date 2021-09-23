@@ -3,8 +3,9 @@ use std::fmt::Display;
 
 use crate::prelude::*;
 use bevy::{ecs::system::{Command, SystemParam}, prelude::*};
-use crate::{map::*, pops::*, settlement::Settlements, stage::*};
+use crate::{map::*, pops::*, stage::*};
 use crate::factor::*;
+use serde::{Serialize, Deserialize};
 
 #[game_ref]
 pub struct ProvinceRef(pub Entity);
@@ -83,7 +84,7 @@ pub enum ProvinceModifier {
     Alluvial, // +100% fertility!!
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Terrain {
     Plains,
     Hills,
@@ -103,6 +104,20 @@ impl Display for Terrain {
 impl Default for Terrain {
     fn default() -> Self {
         Self::Hills
+    }
+}
+
+impl Terrain {
+    pub fn carrying_capacity(self) -> usize {
+        match self {
+            Terrain::Plains => 100,
+            Terrain::Hills => 100,
+            Terrain::Mountains => 10,
+            Terrain::Desert => 0,
+            Terrain::Marsh => 10,
+            Terrain::Forest => 20,
+            Terrain::Ocean => 0,
+        }
     }
 }
 

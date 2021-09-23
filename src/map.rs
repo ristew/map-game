@@ -368,6 +368,10 @@ pub struct SpawnSettlementCommand {
 impl Command for SpawnSettlementCommand {
     fn write(self: Box<Self>, world: &mut World) {
         // TODO: only spawn polity if not in parent admin zone
+        if let Some(settlement) = self.province.try_get::<Settlement>(world) {
+            println!("someone already here! {:?}", settlement);
+            return;
+        }
         let name = self.language.get::<Language>(world).generate_name(2);
         let coordinate = *self.province.get::<MapCoordinate>(world);
         let mut factors = Factors::new();
@@ -449,7 +453,8 @@ pub fn create_map() {
             let coord = MapCoordinate { x: i, y: j - (i / 2) };
             map_esds.push(MapEntitySaveData {
                 map_coordinate: Some(coord),
-                map_tile: Some(MapTile{ tile_type: MapTileType::Water })
+                map_tile: Some(MapTile{ tile_type: MapTileType::Water }),
+                districts: None,
             });
         }
     }

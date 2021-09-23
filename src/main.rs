@@ -33,7 +33,7 @@ pub mod prelude {
         pub use crate::province::{Province, ProvinceRef};
         pub use crate::probability::individual_event;
         pub use crate::pops::{Pop, PopFactor, CultureRef, LanguageRef, PolityRef};
-        pub use crate::settlement::SettlementRef;
+        pub use crate::settlement::{SettlementRef, Districts};
         pub use crate::map::MapCoordinate;
         pub use crate::macros::GameRef;
         pub use crate::constant::DAY_LABEL;

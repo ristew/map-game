@@ -242,7 +242,7 @@ pub fn harvest_system(
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
         // println!("size {} comf {}", settlement_size, comfortable_limit);
         if settlement_size as f32 > comfortable_limit {
-            pop_factors.add(PopFactor::PopulationPressure, 0.2);
+            pop_factors.add(PopFactor::PopulationPressure, 0.1);
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
@@ -252,12 +252,14 @@ pub fn harvest_system(
             pop_factors.add(PopFactor::PopulationPressure, -0.2);
         }
         if settlement_size as f32 > carrying_capacity {
-            println!("less is farmed");
-            farmed_amount = carrying_capacity + (farmed_amount - carrying_capacity).sqrt();
+            let old_farmed_amount = farmed_amount;
+            farmed_amount = pop.size as f32 / settlement_size as f32 * (carrying_capacity + (settlement_size as f32 - carrying_capacity).powf(0.85));
+            println!("less is farmed, would be {}, is {}", old_farmed_amount, farmed_amount);
+            pop_factors.add(PopFactor::PopulationPressure, 0.4);
         }
-        if random::<f32>() > 0.9 {
+        if random::<f32>() > 0.98 {
             // println!("failed harvest! halving farmed goods");
-            farmed_amount *= 0.7;
+            farmed_amount *= 0.6;
         }
         // world.add_command(Box::new(SetGoodsCommand {
         //     good_type: farmed_good,
@@ -599,15 +601,17 @@ impl Command for PopSeekMigrationCommand {
         if !pref.get::<MapTile>(world).tile_type.inhabitable() {
             return;
         }
-        let mut target_value = self.pressure.powf(1.5);
+        let mut target_value = -2.0 + self.pressure;
         if let Some(settlement) = pref.try_get::<SettlementRef>(world) {
+            /*
             println!("settlement?? {:?}", settlement);
-            return;
+            */
             target_value -= 1.0;
             if settlement.get::<CultureRef>(world) != self.pop.get::<CultureRef>(world) {
                 target_value -= 2.0;
             } else {
                 println!("meld");
+
             }
         }
         if individual_event(logistic(target_value)) {

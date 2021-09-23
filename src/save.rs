@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use bevy::ecs::system::Command;
 use serde::{Serialize, Deserialize};
 
+use crate::prelude::*;
+
 use super::map::*;
 
 pub struct SaveMapCommand;
@@ -12,6 +14,7 @@ pub struct SaveMapCommand;
 pub struct MapEntitySaveData {
     pub map_coordinate: Option<MapCoordinate>,
     pub map_tile: Option<MapTile>,
+    pub districts: Option<Districts>,
 }
 
 /// Saves teh world, one entity at a time
@@ -37,6 +40,7 @@ impl Command for SaveMapCommand {
             let esd = MapEntitySaveData {
                 map_coordinate: component!(MapCoordinate),
                 map_tile: component!(MapTile),
+                districts: component!(Districts),
             };
             entities.push(esd);
         }
