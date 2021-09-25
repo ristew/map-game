@@ -4,7 +4,7 @@ use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::fmt::Debug;
-use crate::{pops::GoodType, prelude::*};
+use crate::{formula::FactorSubject, pops::GoodType, prelude::*};
 
 pub enum FactorEffectLabel {
 
@@ -35,6 +35,28 @@ pub enum FactorDecay {
     Linear(f32),
     Exponential(f32),
     None,
+}
+
+
+
+#[derive(Copy, Clone, Eq, Hash, Debug)]
+pub enum FactorRef {
+    Pop(PopRef),
+    Language(LanguageRef),
+    Polity(PolityRef),
+    Province(ProvinceRef),
+    Culture(CultureRef),
+    Settlement(SettlementRef),
+}
+
+impl FactorSubject for FactorRef {
+
+}
+
+impl From<PopRef> for FactorRef {
+    fn from(target: PopRef) -> Self {
+        Self::Pop(target)
+    }
 }
 
 pub struct Factor {
@@ -89,7 +111,7 @@ impl Factors {
         }
     }
 
-    pub fn add(&mut self, ftype: FactorType, amt: f32) {
+    pub fn add(&mut self, ftype: FactorType, amt: f32) -> f32 {
         if !self.inner.contains_key(&ftype) {
             self.inner.insert(ftype, Factor {
                 ftype,
@@ -100,7 +122,9 @@ impl Factors {
             });
         }
 
-        self.inner.get_mut(&ftype).unwrap().amount += amt;
+        let f = self.inner.get_mut(&ftype).unwrap();
+        f.amount += amt;
+        f
     }
 
     pub fn factor(&self, ftype: FactorType) -> f32 {

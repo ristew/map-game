@@ -11,7 +11,7 @@ use rand::seq::SliceRandom;
 use rand::{random, thread_rng};
 use crate::prelude::*;
 use crate::probability::individual_event;
-use crate::settlement::{Settlement, SettlementBundle, SettlementFactor, SettlementPops};
+use crate::settlement::{Settlement, SettlementBundle, SettlementPops};
 use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, time::Date};
 use crate::stage::{DayStage, InitStage};
 use crate::factor::Factors;
@@ -375,7 +375,7 @@ impl Command for SpawnSettlementCommand {
         let name = self.language.get::<Language>(world).generate_name(2);
         let coordinate = *self.province.get::<MapCoordinate>(world);
         let mut factors = Factors::new();
-        factors.add(SettlementFactor::CarryingCapacity, 100.0);
+        factors.add(FactorType::SettlementCarryingCapacity, 100.0);
         let settlement = SettlementRef({
             world.spawn()
                 .insert_bundle(SettlementBundle {
