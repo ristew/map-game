@@ -61,16 +61,19 @@ pub struct FormulaId(usize);
 pub struct Formula<T> where T: FactorSubject {
     pub inputs: Vec<FormulaInput<T>>,
     pub ops: Vec<FormulaOp<T>>,
+}
+
+pub struct FormulaValue {
     pub cached: f32,
     pub dirty: bool,
 }
 
 
-
 pub struct FormulaSystem<T> where T: FactorSubject {
     factors: HashMap<T, Factors>,
-    formulae: Arc<Mutex<Vec<Formula<T>>>>,
+    formulae: Vec<Formula<T>>,
     input_map: HashMap<FormulaInput<T>, Vec<FormulaId>>,
+    formula_values: Arc<Mutex<HashMap<FormulaId, FormulaValue>>>,
 }
 
 // TODO: don't propogate onto end nodes
@@ -111,13 +114,13 @@ impl<T> FormulaSystem<T> where T: FactorSubject {
     }
 
     fn formula_value(&self, formula_id: FormulaId) -> f32 {
-        let mut formulae = self.formulae.lock();
-        if let Some(formula) = formulae.get_mut(formula_id.0) {
-            if !formula.dirty {
-                formula.cached
-            } else {
-                self.calc_formula_base(formula)
+        let mut formula_values = self.formula_values.lock();
+        if let Some(val) = formula_values.get_mut(&formula_id) {
+            if val.dirty {
+                val.cached = self.calc_formula(formula_id);
+                val.dirty = false;
             }
+            val.cached
         } else {
             0.0
         }
@@ -138,39 +141,33 @@ impl<T> FormulaSystem<T> where T: FactorSubject {
     }
 
     fn dirty_formula(&self, formula_id: FormulaId) {
-        let mut formulae = self.formulae.lock();
-        if let Some(mut formula) = formulae.get_mut(formula_id.0) {
-            formula.dirty = true;
+        let mut formula_values = self.formula_values.lock();
+        if let Some(val) = formula_values.get_mut(&formula_id) {
+            val.dirty = true;
         }
     }
 
     fn calc_formula(&self, formula_id: FormulaId) -> f32 {
-        let mut formulae = self.formulae.lock();
-        if let Some(formula) = formulae.get_mut(formula_id.0) {
-            self.calc_formula_base(formula)
-        } else {
-            0.0
-        }
-    }
-
-    fn calc_formula_base(&self, formula: &mut Formula<T>) -> f32 {
-        let inputs = self.fetch_inputs(&formula.inputs);
-        formula.cached = 0.0;
-        formula.dirty = false;
-        formula.cached
+        0.0
     }
 
     fn add_formula_input(&mut self, formula: FormulaId, input: FormulaInput<T>) {
         self.input_map.entry(input).or_default().push(formula);
     }
 
-    pub fn add_formula(&self, formula: Formula<T>) -> FormulaId {
-        let mut formulae = self.formulae.lock();
-        let idx = formulae.len();
+    pub fn add_formula(&mut self, formula: Formula<T>) -> FormulaId {
+        let idx = self.formulae.len();
         let formula_id = FormulaId(idx);
         for input in formula.inputs.iter() {
         }
-        formulae.push(formula);
+        self.formulae.push(formula);
+        {
+            let mut formula_values = self.formula_values.lock();
+            formula_values.insert(formula_id, FormulaValue {
+                cached: self.calc_formula(formula_id),
+                dirty: false,
+            });
+        }
         formula_id
     }
 }
