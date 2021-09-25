@@ -23,6 +23,7 @@ pub mod factor;
 pub mod agent;
 pub mod gameref;
 pub mod decision;
+pub mod formula;
 // pub mod modifier;
 
 pub mod prelude {
@@ -32,7 +33,7 @@ pub mod prelude {
         pub use crate::stage::{DayStage, DayStageBuilder};
         pub use crate::province::{Province, ProvinceRef};
         pub use crate::probability::individual_event;
-        pub use crate::pops::{Pop, PopFactor, CultureRef, LanguageRef, PolityRef};
+        pub use crate::pops::{Pop, CultureRef, LanguageRef, PolityRef};
         pub use crate::settlement::{SettlementRef, Districts};
         pub use crate::map::MapCoordinate;
         pub use crate::macros::GameRef;

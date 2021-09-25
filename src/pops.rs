@@ -191,7 +191,7 @@ pub fn harvest_system(
     }
     for (pop, &settlement_ref, farming_pop, mut pop_factors) in farming_pop_query.iter_mut() {
         let mut farmed_amount = pop.size as f32;
-        let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SETTLEMENT_CARRYING_CAPACITY);
+        let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(FactorType::SettlementCarryingCapacity);
         let comfortable_limit = carrying_capacity / 2.0;
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
         // println!("size {} comf {}", settlement_size, comfortable_limit);

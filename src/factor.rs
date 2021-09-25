@@ -16,17 +16,12 @@ pub enum FactorEffect {
     TotalFactor(f32),
 }
 
-#[macro_export]
-macro_rules! const_factor {
-    ( $fname:ident ) => {
-        pub const $fname: FactorType = FactorType("$fname");
-    }
-}
 
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+//TODO: split out into PopFactor eg like FactorRef
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum FactorType {
     SettlementCarryingCapacity,
+
     PopDemand(GoodType),
     PopPressure,
 }
@@ -39,7 +34,7 @@ pub enum FactorDecay {
 
 
 
-#[derive(Copy, Clone, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FactorRef {
     Pop(PopRef),
     Language(LanguageRef),
@@ -87,12 +82,13 @@ impl Factor {
             ftype,
             amount: 0.0,
             target: 0.0,
-            decay: ftype.base_decay(),
+            decay: FactorDecay::None,
             effects: HashMap::new(),
         }
     }
 }
 
+#[derive(Default)]
 pub struct Factors {
     pub inner: HashMap<FactorType, Factor>,
 }
@@ -117,14 +113,14 @@ impl Factors {
                 ftype,
                 amount: 0.0,
                 target: 0.0,
-                decay: ftype.base_decay(),
+                decay: FactorDecay::None,
                 effects: HashMap::new(),
             });
         }
 
         let f = self.inner.get_mut(&ftype).unwrap();
         f.amount += amt;
-        f
+        f.amount
     }
 
     pub fn factor(&self, ftype: FactorType) -> f32 {
@@ -152,7 +148,7 @@ pub trait Factored {
 
 impl Factored for PopRef {
     fn factor(&self, world: &World, factor: FactorType) -> f32 {
-        world.get::<Factors>(self.0).map(|f| f.factor(factor)).unwrap_or(factor.default_amount())
+        world.get::<Factors>(self.0).map(|f| f.factor(factor)).unwrap_or(0.0)
     }
 
     fn add_factor(&self, world: &mut World, factor: FactorType, amt: f32) -> f32 {

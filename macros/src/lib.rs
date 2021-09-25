@@ -21,12 +21,10 @@ pub fn game_ref(attr: TokenStream, input: TokenStream) -> TokenStream {
 pub fn game_ref_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
-    let factor_name = format_ident!("{}", format!("{}", name).replace("Ref", "Factor"));
     let generics = input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let expanded = quote! {
         impl #impl_generics crate::gameref::GameRef for #name #ty_generics #where_clause {
-            type Factor = #factor_name;
             fn entity(&self) -> Entity {
                 self.0
             }
@@ -52,7 +50,7 @@ pub fn entity_manager_derive(input: TokenStream) -> TokenStream {
                 self.entity_query.get_component::<T>(ent_ref.entity()).unwrap()
             }
             fn get_factor(&self, ent_ref: #ref_name, factor: #factor_name) -> f32 {
-                self.get_component::<crate::pops::Factors<#factor_name>>(ent_ref).factor(factor)
+                self.get_component::<crate::pops::Factors>(ent_ref).factor(factor)
             }
         }
     };

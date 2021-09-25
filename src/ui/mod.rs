@@ -3,7 +3,7 @@ use bevy::{
 };
 use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock}};
 use crate::{pops::GlobalPopulation, prelude::*};
-use crate::{PopRef, pops::{Pop, PopFactor}, province::{Province, ProvinceMap}, time::{GamePaused, GameSpeed}};
+use crate::{PopRef, pops::{Pop}, province::{Province, ProvinceMap}, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
 use crate::factor::Factors;
 use super::tag::*;
@@ -526,10 +526,10 @@ pub fn info_tag_system(
                     "".to_string()
                 }
             },
-            &InfoTag::PopFactor(pop_ref, factor) => {
-                let (pop, factors) = pop_query.get(pop_ref.0).unwrap();
-                format!("{:?}: {}", factor, factors.factor(factor))
-            },
+            // &InfoTag::PopFactor(pop_ref, factor) => {
+            //     let (pop, factors) = pop_query.get(pop_ref.0).unwrap();
+            //     format!("{:?}: {}", factor, factors.factor(factor))
+            // },
             &InfoTag::BrushSize => format!("{}", map_editor_query.iter().next().map(|me| me.brush_size).unwrap_or(0)),
             &InfoTag::DateDisplay => format!("({}) {}", game_paused.0.then(|| "p").unwrap_or(format!("{}", game_speed.0).as_str()), *date),
             &InfoTag::GlobalPopulation => format!("total population: {}", global_population.0),
@@ -546,7 +546,7 @@ pub enum InfoTag {
     DateDisplay,
     SelectedProvinceName,
     SelectedProvincePopulation,
-    PopFactor(PopRef, PopFactor),
+    // PopFactor(PopRef, PopFactor),
     GlobalPopulation,
     BrushSize,
     Text(String),
