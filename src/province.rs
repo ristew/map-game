@@ -21,28 +21,6 @@ pub struct ProvinceSettlements(pub Vec<SettlementRef>);
 
 pub struct ProvinceMap(pub HashMap<MapCoordinate, ProvinceRef>);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum ProvinceFactor {
-
-}
-
-impl FactorType for ProvinceFactor {
-    fn base_decay(&self) -> FactorDecay {
-        FactorDecay::Linear(0.001)
-    }
-
-    fn default_amount(&self) -> f32 {
-        match self {
-            _ => 0.0,
-        }
-    }
-}
-
-// #[derive(SystemParam, EntityManager)]
-// pub struct ProvinceManager<'a> {
-//     entity_query: Query<'a, (&'static Province, &'static Settlements, &'static MapCoordinate, &'static Factors<ProvinceFactorType>)>,
-// }
-
 pub struct ResetProvinceMap;
 
 impl Command for ResetProvinceMap {

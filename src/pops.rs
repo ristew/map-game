@@ -12,29 +12,15 @@ use crate::factor::*;
 use crate::settlement::*;
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PopFactor {
-    Prominence,
-    Demand(GoodType),
-    PopulationPressure,
-}
 
-impl FactorType for PopFactor {
-    fn base_decay(&self) -> FactorDecay {
-        match *self {
-            PopFactor::Prominence => FactorDecay::Exponential(0.01),
-            PopFactor::Demand(good) => FactorDecay::None,
-            PopFactor::PopulationPressure => FactorDecay::None,
-        }
-    }
 
-    fn default_amount(&self) -> f32 {
-        match self {
-            _ => 0.0,
-        }
-    }
-
-}
+    // fn base_decay(&self) -> FactorDecay {
+    //     match *self {
+    //         PopFactor::Prominence => FactorDecay::Exponential(0.01),
+    //         PopFactor::Demand(good) => FactorDecay::None,
+    //         FactorType::PopPressure => FactorDecay::None,
+    //     }
+    // }
 
 
 // #[derive(SystemParam, EntityManager)]
@@ -51,7 +37,7 @@ pub struct PopBundle {
     pub polity: PolityRef,
     pub language: PopLanguage,
     pub storage: GoodStorage,
-    pub factors: Factors<PopFactor>,
+    pub factors: Factors,
     pub kid_buffer: KidBuffer,
 }
 
@@ -117,27 +103,6 @@ impl KidBuffer {
         }
     }
 }
-// #[derive(GameRef<'w>)]
-// pub struct CultureRef<'w>(pub Entity);
-
-// pub type CultureQuery<'w> = Query<'w, (&'w Culture,)>;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CultureFactor {
-
-}
-
-impl FactorType for CultureFactor {
-    fn base_decay(&self) -> FactorDecay {
-        todo!()
-    }
-
-    fn default_amount(&self) -> f32 {
-        match self {
-            _ => 0.0,
-        }
-    }
-}
 
 #[game_ref]
 pub struct CultureRef(pub Entity);
@@ -151,17 +116,6 @@ pub enum PolityFactor {
 
 }
 
-impl FactorType for PolityFactor {
-    fn base_decay(&self) -> FactorDecay {
-        todo!()
-    }
-
-    fn default_amount(&self) -> f32 {
-        match self {
-            _ => 0.0,
-        }
-    }
-}
 
 #[game_ref]
 pub struct PolityRef(pub Entity);
@@ -187,7 +141,7 @@ pub struct Hunger {
 
 pub fn pop_eat_system(
     date: Res<CurrentDate>,
-    mut pop_query: Query<(&Factors<PopFactor>)>,
+    mut pop_query: Query<(&Factors)>,
 ) {
 
 }
@@ -228,34 +182,34 @@ impl Command for PopDieCommand {
 
 pub fn harvest_system(
     date: Res<CurrentDate>,
-    mut farming_pop_query: Query<(&Pop, &SettlementRef, &FarmingPop, &mut Factors<PopFactor>)>,
+    mut farming_pop_query: Query<(&Pop, &SettlementRef, &FarmingPop, &mut Factors)>,
     settlement: Query<&Settlement>,
-    settlement_factors: Query<&Factors<SettlementFactor>>,
+    settlement_factors: Query<&Factors>,
 ) {
     if !date.is_year {
         return;
     }
     for (pop, &settlement_ref, farming_pop, mut pop_factors) in farming_pop_query.iter_mut() {
         let mut farmed_amount = pop.size as f32;
-        let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SettlementFactor::CarryingCapacity);
+        let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(SETTLEMENT_CARRYING_CAPACITY);
         let comfortable_limit = carrying_capacity / 2.0;
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
         // println!("size {} comf {}", settlement_size, comfortable_limit);
         if settlement_size as f32 > comfortable_limit {
-            pop_factors.add(PopFactor::PopulationPressure, 0.1);
+            pop_factors.add(FactorType::PopPressure, 0.1);
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
             //     pressure: (pop_size / comfortable_limit).powi(2),
             // }))
         } else {
-            pop_factors.add(PopFactor::PopulationPressure, -0.2);
+            pop_factors.add(FactorType::PopPressure, -0.2);
         }
         if settlement_size as f32 > carrying_capacity {
             let old_farmed_amount = farmed_amount;
             farmed_amount = pop.size as f32 / settlement_size as f32 * (carrying_capacity + (settlement_size as f32 - carrying_capacity).powf(0.85));
             println!("less is farmed, would be {}, is {}", old_farmed_amount, farmed_amount);
-            pop_factors.add(PopFactor::PopulationPressure, 0.4);
+            pop_factors.add(FactorType::PopPressure, 0.4);
         }
         if random::<f32>() > 0.98 {
             // println!("failed harvest! halving farmed goods");
@@ -329,23 +283,6 @@ pub struct Language {
 
 #[game_ref]
 pub struct LanguageRef(pub Entity);
-
-#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
-pub enum LanguageFactor {
-
-}
-
-impl FactorType for LanguageFactor {
-    fn base_decay(&self) -> FactorDecay {
-        todo!()
-    }
-
-    fn default_amount(&self) -> f32 {
-        match self {
-            _ => 0.0,
-        }
-    }
-}
 
 fn list_filter_chance(list: &Vec<String>, chance: f32) -> Vec<String> {
     let target_len = (list.len() as f32 * chance).round() as usize;
@@ -627,7 +564,7 @@ impl Command for PopSeekMigrationCommand {
                 }
             };
             // println!("lose {} people of {}", migration_status.migrating, pop_size);
-            self.pop.clear_factor(world, PopFactor::PopulationPressure);
+            self.pop.clear_factor(world, FactorType::PopPressure);
             world
                 .get_mut::<Pop>(self.pop.entity())
                 .unwrap()

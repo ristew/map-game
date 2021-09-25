@@ -1,4 +1,5 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
+use crate::const_factor;
 use crate::prelude::*;
 use crate::constant::DAY_LABEL;
 use crate::pops::*;
@@ -38,25 +39,7 @@ impl SettlementPops {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum SettlementFactor {
-    CarryingCapacity,
-    EliteOwnership,
-}
-
-impl FactorType for SettlementFactor {
-    fn base_decay(&self) -> FactorDecay {
-        match *self {
-            _ => FactorDecay::None,
-        }
-    }
-
-    fn default_amount(&self) -> f32 {
-        match self {
-            _ => 0.0,
-        }
-    }
-}
+const_factor!(SETTLEMENT_CARRYING_CAPACITY);
 
 #[game_ref]
 pub struct SettlementRef(pub Entity);
@@ -82,7 +65,7 @@ pub struct SettlementBundle {
     pub pops: SettlementPops,
     pub province: ProvinceRef,
     pub polity: PolityRef,
-    pub factors: Factors<SettlementFactor>,
+    pub factors: Factors,
     pub coordinate: MapCoordinate,
 }
 
@@ -104,11 +87,6 @@ fn settlement_info_system(
         settlement.population = total_pop;
     }
 }
-
-// #[derive(SystemParam, EntityManager)]
-// pub struct SettlementManager<'a> {
-//     entity_query: Query<'a, (&'static Settlement, &'static Pops, &'static MapCoordinate, &'static Factors<SettlementFactor>)>,
-// }
 
 pub struct SettlementPlugin;
 

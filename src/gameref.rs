@@ -48,8 +48,6 @@ pub trait GameRefQuery<T> where T: GameRef {
 }
 
 pub trait GameRef: Copy + Clone + Debug + Send + Sync + Hash + Eq {
-    type Factor: FactorType + Copy + Eq + Hash + Send + Sync + 'static;
-
     fn entity(&self) -> Entity;
 
     fn get<'a, T>(&self, world: &'a World) -> &'a T where T: Component {
@@ -68,12 +66,12 @@ pub trait GameRef: Copy + Clone + Debug + Send + Sync + Hash + Eq {
         world.get_mut::<T>(self.entity())
     }
 
-    fn get_factor(&self, world: &World, factor: Self::Factor) -> f32 {
-        world.get::<Factors<Self::Factor>>(self.entity()).unwrap().factor(factor)
+    fn get_factor(&self, world: &World, factor: FactorType) -> f32 {
+        world.get::<Factors>(self.entity()).unwrap().factor(factor)
     }
 
-    fn clear_factor(&self, world: &mut World, factor: Self::Factor) -> f32 {
-        world.get_mut::<Factors<Self::Factor>>(self.entity()).unwrap().clear(factor)
+    fn clear_factor(&self, world: &mut World, factor: FactorType) -> f32 {
+        world.get_mut::<Factors>(self.entity()).unwrap().clear(factor)
     }
 
     fn accessor<'a>(&self, world: &'a World) -> GameRefAccessor<'a, Self> {
