@@ -36,11 +36,25 @@ impl Into<f32> for F32Hash {
     }
 }
 
+pub struct FactorDescriptor {
+
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FormulaInput<T> where T: FactorSubject {
     Formula(FormulaId),
     Factor(T, FactorType),
     Constant(F32Hash),
+}
+
+impl<T> FormulaInput<T> where T: FactorSubject {
+    pub fn value(&self, system: &FormulaSystem<T>) -> f32 {
+        match self {
+            FormulaInput::Formula(f_id) => system.formula_value(*f_id),
+            FormulaInput::Factor(r, ftype) => system.get_factor(r, *ftype),
+            FormulaInput::Constant(n) => n.0,
+        }
+    }
 }
 
 pub enum FormulaOp<T> where T: FactorSubject {
@@ -50,6 +64,8 @@ pub enum FormulaOp<T> where T: FactorSubject {
     Div,
     Input(FormulaInput<T>),
 }
+
+pub struct FormulaArgs(Vec<FormulaInput<T>>)
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FormulaId(usize);
@@ -61,6 +77,7 @@ pub struct FormulaId(usize);
 pub struct Formula<T> where T: FactorSubject {
     pub inputs: Vec<FormulaInput<T>>,
     pub ops: Vec<FormulaOp<T>>,
+    pub inner_fn: Box<dyn Fn()>
 }
 
 pub struct FormulaValue {
