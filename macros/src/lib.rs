@@ -21,12 +21,17 @@ pub fn game_ref(attr: TokenStream, input: TokenStream) -> TokenStream {
 pub fn game_ref_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
+    let factor_ref_variant = format_ident!("{}", format!("{}", name).replace("Ref", ""));
     let generics = input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let expanded = quote! {
         impl #impl_generics crate::gameref::GameRef for #name #ty_generics #where_clause {
             fn entity(&self) -> Entity {
                 self.0
+            }
+
+            fn factor_ref(&self) -> FactorRef {
+                FactorRef::#factor_ref_variant(*self)
             }
         }
     };

@@ -1,3 +1,5 @@
+#![feature(fn_traits)]
+#![feature(unboxed_closures)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 extern crate bevy;
@@ -5,6 +7,7 @@ extern crate bevy;
 extern crate macros;
 #[macro_use]
 extern crate lazy_static;
+
 
 pub mod ui;
 pub mod tag;
@@ -38,7 +41,8 @@ pub mod prelude {
         pub use crate::map::MapCoordinate;
         pub use crate::macros::GameRef;
         pub use crate::constant::DAY_LABEL;
-        pub use crate::factor::{FactorType, Factors, Factored};
+        pub use crate::factor::{FactorType, Factored};
+        pub use crate::formula::{Formula};
 }
 
 use agent::AgentPlugin;

@@ -5,7 +5,6 @@ use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc, sync::{Arc, RwLock
 use crate::{pops::GlobalPopulation, prelude::*};
 use crate::{PopRef, pops::{Pop}, province::{Province, ProvinceMap}, time::{GamePaused, GameSpeed}};
 use crate::time::Date;
-use crate::factor::Factors;
 use super::tag::*;
 use super::map::{MapCoordinate, MapTileType, MapTile, HexMap};
 use super::save::*;

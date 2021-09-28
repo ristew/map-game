@@ -9,12 +9,13 @@ use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::{random, thread_rng};
+use crate::formula::{FactorSubject, Formula, FormulaFn};
 use crate::prelude::*;
 use crate::probability::individual_event;
 use crate::settlement::{Settlement, SettlementBundle, SettlementPops};
 use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, time::Date};
 use crate::stage::{DayStage, InitStage};
-use crate::factor::Factors;
+use crate::factor::{FactorRef};
 
 use crate::{SettlementRef, pops::*};
 use crate::constant::*;
@@ -391,6 +392,16 @@ impl Command for SpawnSettlementCommand {
                 })
                 .id()
         });
+
+        let formula = Formula::new(
+            vec![
+                (settlement.factor_ref(), FactorType::SettlementCarryingCapacity),
+            ],
+            |carrying_capacity| {
+                carrying_capacity / 2.0
+            },
+            (settlement.factor_ref(), FactorType::SettlementPressure),
+        );
         world
             .get_entity_mut(self.province.entity())
             .unwrap()

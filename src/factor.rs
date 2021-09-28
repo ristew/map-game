@@ -4,7 +4,7 @@ use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::fmt::Debug;
-use crate::{formula::FactorSubject, pops::GoodType, prelude::*};
+use crate::{formula::{FactorSubject, FormulaId, FormulaSystem}, pops::GoodType, prelude::*};
 
 pub enum FactorEffectLabel {
 
@@ -20,7 +20,9 @@ pub enum FactorEffect {
 //TODO: split out into PopFactor eg like FactorRef
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum FactorType {
+    SettlementPopulation,
     SettlementCarryingCapacity,
+    SettlementPressure,
 
     PopDemand(GoodType),
     PopPressure,
@@ -44,7 +46,9 @@ pub enum FactorRef {
     Settlement(SettlementRef),
 }
 
-impl FactorSubject for FactorRef {
+pub type FST = (FactorRef, FactorType);
+
+impl FactorSubject for FST {
 
 }
 
@@ -54,81 +58,26 @@ impl From<PopRef> for FactorRef {
     }
 }
 
-pub struct Factor {
-    ftype: FactorType,
-    amount: f32,
-    target: f32,
-    effects: HashMap<&'static str, FactorEffect>,
-    decay: FactorDecay,
+pub enum Factor {
+    Constant(f32),
+    Decay(f32, FactorDecay),
+    Formula(FormulaId),
 }
 
 impl Factor {
     pub fn decay(&mut self) -> f32 {
-        let this_decay = match self.decay {
-            FactorDecay::Linear(n) => n,
-            FactorDecay::Exponential(n) => (self.amount - self.target) * n,
-            FactorDecay::None => 0.0,
-        };
-        self.amount = (self.amount - this_decay).max(self.target);
-        this_decay
-    }
-
-    pub fn add(&mut self, amt: f32) {
-        self.amount += amt;
-    }
-
-    pub fn base(ftype: FactorType) -> Self {
-        Self {
-            ftype,
-            amount: 0.0,
-            target: 0.0,
-            decay: FactorDecay::None,
-            effects: HashMap::new(),
+        match self {
+            &mut Factor::Decay(amount, decay) => {
+                let this_decay = match decay {
+                    FactorDecay::Linear(n) => n,
+                    FactorDecay::Exponential(n) => amount * n,
+                    FactorDecay::None => 0.0,
+                };
+                amount = (amount - this_decay).max(0.0);
+                this_decay
+            },
+            _ => 0.0,
         }
-    }
-}
-
-#[derive(Default)]
-pub struct Factors {
-    pub inner: HashMap<FactorType, Factor>,
-}
-
-
-impl Factors {
-    pub fn new() -> Self {
-        Self {
-            inner: HashMap::new()
-        }
-    }
-
-    pub fn decay(&mut self) {
-        for factor in self.inner.values_mut() {
-            factor.decay();
-        }
-    }
-
-    pub fn add(&mut self, ftype: FactorType, amt: f32) -> f32 {
-        if !self.inner.contains_key(&ftype) {
-            self.inner.insert(ftype, Factor {
-                ftype,
-                amount: 0.0,
-                target: 0.0,
-                decay: FactorDecay::None,
-                effects: HashMap::new(),
-            });
-        }
-
-        let f = self.inner.get_mut(&ftype).unwrap();
-        f.amount += amt;
-        f.amount
-    }
-
-    pub fn factor(&self, ftype: FactorType) -> f32 {
-        self.inner.get(&ftype).map(|f| f.amount).unwrap_or(0.0)
-    }
-
-    pub fn clear(&mut self, ftype: FactorType) -> f32 {
-        self.inner.remove(&ftype).map(|f| f.amount).unwrap_or(0.0)
     }
 }
 
@@ -146,38 +95,15 @@ pub trait Factored {
     fn add_factor(&self, world: &mut World, factor: FactorType, amt: f32) -> f32;
 }
 
-impl Factored for PopRef {
-    fn factor(&self, world: &World, factor: FactorType) -> f32 {
-        world.get::<Factors>(self.0).map(|f| f.factor(factor)).unwrap_or(0.0)
-    }
-
-    fn add_factor(&self, world: &mut World, factor: FactorType, amt: f32) -> f32 {
-        world.get_mut::<Factors>(self.0).unwrap().add(factor, amt);
-        self.factor(world, factor)
-    }
-}
-
-fn decay_factors_system<T> (
-    mut factors: Query<&mut Factors>,
-    date: Res<CurrentDate>,
-) where T: GameRef {
-    if date.is_month {
-        for mut fs in factors.iter_mut() {
-            fs.decay();
-        }
-    }
-}
-
-pub struct AddFactorCommand<T> where T: Factored + Sized {
-    target: T,
-    factor: FactorType,
+pub struct AddFactorCommand {
+    target: FST,
     amt: f32,
 }
 
-impl<T> Command for AddFactorCommand<T> where T: Factored + Sized + Debug + Send + Sync + 'static {
+impl Command for AddFactorCommand {
     fn write(self: Box<Self>, world: &mut World) {
-        println!("set factor {:?} {:?} {}", self.target, self.factor, self.amt);
-        self.target.add_factor(world, self.factor, self.amt);
+        println!("set factor {:?} {}", self.target, self.amt);
+        world.get_resource::<FormulaSystem<FST>>().map(|factor_system| factor_system.add_factor(&self.target, self.amt));
     }
 }
 

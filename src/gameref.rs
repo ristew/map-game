@@ -1,6 +1,6 @@
 use std::{hash::Hash, fmt::Debug};
 use bevy::{ecs::component::Component, prelude::*};
-use crate::{prelude::*, settlement::Settlement};
+use crate::{factor::{FST, FactorRef}, formula::{FactorSubject, FormulaSystem}, prelude::*, settlement::Settlement};
 
 pub struct GameRefAccessor<'a, T> where T: GameRef {
     gref: T,
@@ -50,6 +50,8 @@ pub trait GameRefQuery<T> where T: GameRef {
 pub trait GameRef: Copy + Clone + Debug + Send + Sync + Hash + Eq {
     fn entity(&self) -> Entity;
 
+    fn factor_ref(&self) -> FactorRef;
+
     fn get<'a, T>(&self, world: &'a World) -> &'a T where T: Component {
         self.try_get(world).unwrap()
     }
@@ -67,11 +69,11 @@ pub trait GameRef: Copy + Clone + Debug + Send + Sync + Hash + Eq {
     }
 
     fn get_factor(&self, world: &World, factor: FactorType) -> f32 {
-        world.get::<Factors>(self.entity()).unwrap().factor(factor)
+        world.get_resource::<FormulaSystem<FST>>().unwrap().get_factor(&(self.factor_ref(), factor))
     }
 
-    fn clear_factor(&self, world: &mut World, factor: FactorType) -> f32 {
-        world.get_mut::<Factors>(self.entity()).unwrap().clear(factor)
+    fn set_factor(&self, world: &World, factor: FactorType, amount: f32) {
+        world.get_resource::<FormulaSystem<FST>>().unwrap().set_factor(&(self.factor_ref(), factor), amount);
     }
 
     fn accessor<'a>(&self, world: &'a World) -> GameRefAccessor<'a, Self> {

@@ -564,7 +564,7 @@ impl Command for PopSeekMigrationCommand {
                 }
             };
             // println!("lose {} people of {}", migration_status.migrating, pop_size);
-            self.pop.clear_factor(world, FactorType::PopPressure);
+            self.pop.set_factor(world, FactorType::PopPressure, 0.0);
             world
                 .get_mut::<Pop>(self.pop.entity())
                 .unwrap()
