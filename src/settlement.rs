@@ -62,7 +62,6 @@ pub struct SettlementBundle {
     pub pops: SettlementPops,
     pub province: ProvinceRef,
     pub polity: PolityRef,
-    pub factors: Factors,
     pub coordinate: MapCoordinate,
 }
 

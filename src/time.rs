@@ -101,7 +101,7 @@ impl Date {
 
 impl std::fmt::Display for Date {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}/{}/{}", self.month, self.day, self.year))
+        f.write_fmt(format_args!("{:02}/{:02}/{:02}", self.month, self.day, self.year))
     }
 }
 

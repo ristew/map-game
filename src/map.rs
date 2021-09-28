@@ -9,13 +9,13 @@ use serde::{Serialize, Deserialize};
 use bevy_tilemap::{point::Point3, prelude::*};
 use rand::seq::SliceRandom;
 use rand::{random, thread_rng};
-use crate::formula::{FactorSubject, Formula, FormulaFn};
+use crate::formula::{FactorSubject, Formula, FormulaFn, FormulaSystem};
 use crate::prelude::*;
 use crate::probability::individual_event;
 use crate::settlement::{Settlement, SettlementBundle, SettlementPops};
 use crate::{input::CurrentOverlayType, province::{Province, ProvinceMap}, time::Date};
 use crate::stage::{DayStage, InitStage};
-use crate::factor::{FactorRef};
+use crate::factor::{FST, FactorRef};
 
 use crate::{SettlementRef, pops::*};
 use crate::constant::*;
@@ -375,8 +375,6 @@ impl Command for SpawnSettlementCommand {
         }
         let name = self.language.get::<Language>(world).generate_name(2);
         let coordinate = *self.province.get::<MapCoordinate>(world);
-        let mut factors = Factors::new();
-        factors.add(FactorType::SettlementCarryingCapacity, 100.0);
         let settlement = SettlementRef({
             world.spawn()
                 .insert_bundle(SettlementBundle {
@@ -388,10 +386,10 @@ impl Command for SpawnSettlementCommand {
                     province: self.province,
                     polity: self.polity,
                     coordinate,
-                    factors,
                 })
                 .id()
         });
+        world.get_resource::<FormulaSystem<FST>>().unwrap().set_factor(&settlement.fst(FactorType::SettlementCarryingCapacity), 100.0);
 
         let formula = Formula::new(
             vec![
@@ -441,7 +439,6 @@ impl Command for SpawnPopCommand {
                         drift: 0.0,
                     },
                     storage: GoodStorage(HashMap::new()),
-                    factors: Factors { inner: HashMap::new() },
                     kid_buffer: KidBuffer(VecDeque::new()),
                 }
             };

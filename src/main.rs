@@ -48,6 +48,8 @@ pub mod prelude {
 use agent::AgentPlugin;
 use bevy::{core::FixedTimestep, diagnostic::{ FrameTimeDiagnosticsPlugin, DiagnosticsPlugin }, prelude::*, sprite::SpriteSettings};
 use bevy_tilemap::prelude::TilemapDefaultPlugins;
+use factor::FST;
+use formula::FormulaSystem;
 use province::ProvincePlugin;
 use settlement::SettlementPlugin;
 // fuck yo namespace
@@ -117,5 +119,6 @@ fn main() {
         .add_plugin(ProvincePlugin)
         .add_plugin(DiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .init_resource::<FormulaSystem<FST>>()
         .run();
 }

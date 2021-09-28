@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 use std::fmt::Debug;
 use std::hash::Hash;
 use dashmap::DashMap;
+use dashmap::mapref::one::RefMut;
 use parking_lot::{Mutex, RwLock};
 
 use bevy::core::AsBytes;
@@ -99,19 +100,24 @@ pub struct FormulaSystem<T> where T: FactorSubject {
 
 // TODO: don't propogate onto end nodes
 impl<T> FormulaSystem<T> where T: FactorSubject {
-    pub fn add_factor(&mut self, f: &T, amount: f32) {
-        self.factors.get_mut(f).map(|factor| {
+    pub fn add_factor(&self, f: &T, amount: f32) {
+        self.factors.get_mut(f).map(|mut factor| {
             match factor.value_mut() {
                 Factor::Constant(n) => *n += amount,
                 Factor::Decay(n, _) => *n += amount,
-                _ => println!("tried to add to formula? {:?} + {}", f, amount),
+                Factor::Formula(_) => println!("add to factor {:?}", f),
             }
         });
-        self.propogate_changes(f);
     }
 
     pub fn set_factor(&self, f: &T, amount: f32) {
-
+        self.factors.get_mut(f).map(|mut factor| {
+            match factor.value_mut() {
+                Factor::Constant(n) => *n = amount,
+                Factor::Decay(n, _) => *n = amount,
+                Factor::Formula(_) => println!("add to factor {:?}", f),
+            }
+        });
     }
 
     pub fn get_factor(&self, f: &T) -> f32 {
@@ -145,9 +151,9 @@ impl<T> FormulaSystem<T> where T: FactorSubject {
     }
 
     // given that f changed, update values of all descendant formulae
-    fn propogate_changes(&mut self, f: &T) {
+    fn propogate_changes(&self, f: &T) {
         for &formula_id in self.get_formulae(f).iter() {
-            let formula = self.formulae[formula_id.0];
+            let formula = &self.formulae[formula_id.0];
             // only really calc if there are more down the line, otherwise mark dirty
             if self.input_map.get(&formula.subject).map(|v| v.len()).unwrap_or(0) > 0 {
                 let before = self.formula_value(formula_id);
@@ -175,7 +181,7 @@ impl<T> FormulaSystem<T> where T: FactorSubject {
             }
         }
         {
-            let val = self.formula_values.get_mut(&formula_id).unwrap();
+            let mut val = self.formula_values.get_mut(&formula_id).unwrap();
             val.cached = self.calc_formula(formula_id);
             val.dirty = false;
             val.cached
@@ -191,8 +197,8 @@ impl<T> FormulaSystem<T> where T: FactorSubject {
     }
 
     fn dirty_formula(&self, formula_id: FormulaId) {
-        if let Some(val) = self.formula_values.get_mut(&formula_id) {
-            val.dirty = true;
+        if let Some(mut val) = self.formula_values.get_mut(&formula_id) {
+            val.value_mut().dirty = true;
         }
     }
 
@@ -218,5 +224,11 @@ impl<T> FormulaSystem<T> where T: FactorSubject {
             dirty: false,
         });
         formula_id
+    }
+}
+
+impl<T> Default for FormulaSystem<T> where T: FactorSubject {
+    fn default() -> Self {
+        Self { factors: Default::default(), formulae: Default::default(), input_map: Default::default(), formula_values: Default::default() }
     }
 }

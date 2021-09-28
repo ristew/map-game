@@ -67,13 +67,13 @@ pub enum Factor {
 impl Factor {
     pub fn decay(&mut self) -> f32 {
         match self {
-            &mut Factor::Decay(amount, decay) => {
+            Factor::Decay(amount, decay) => {
                 let this_decay = match decay {
-                    FactorDecay::Linear(n) => n,
-                    FactorDecay::Exponential(n) => amount * n,
+                    FactorDecay::Linear(n) => *n,
+                    FactorDecay::Exponential(ref n) => *amount * n,
                     FactorDecay::None => 0.0,
                 };
-                amount = (amount - this_decay).max(0.0);
+                *amount = (*amount - this_decay).max(0.0);
                 this_decay
             },
             _ => 0.0,

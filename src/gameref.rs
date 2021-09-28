@@ -72,6 +72,10 @@ pub trait GameRef: Copy + Clone + Debug + Send + Sync + Hash + Eq {
         world.get_resource::<FormulaSystem<FST>>().unwrap().get_factor(&(self.factor_ref(), factor))
     }
 
+    fn fst(&self, factor: FactorType) -> FST {
+        (self.factor_ref(), factor)
+    }
+
     fn set_factor(&self, world: &World, factor: FactorType, amount: f32) {
         world.get_resource::<FormulaSystem<FST>>().unwrap().set_factor(&(self.factor_ref(), factor), amount);
     }

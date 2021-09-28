@@ -3,7 +3,7 @@ use rand::{Rng, distributions::Slice, prelude::SliceRandom, random, thread_rng};
 use rand_distr::Uniform;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
-use crate::prelude::*;
+use crate::{formula::FormulaSystem, prelude::*};
 use crate::{constant::{DAY_LABEL, DAY_TIMESTEP}, map::*, province::{Province, ProvinceMap, ProvinceRef, ProvinceSettlements}};
 use crate::time::*;
 use crate::probability::*;
@@ -37,7 +37,6 @@ pub struct PopBundle {
     pub polity: PolityRef,
     pub language: PopLanguage,
     pub storage: GoodStorage,
-    pub factors: Factors,
     pub kid_buffer: KidBuffer,
 }
 
@@ -139,13 +138,6 @@ pub struct Hunger {
 
 }
 
-pub fn pop_eat_system(
-    date: Res<CurrentDate>,
-    mut pop_query: Query<(&Factors)>,
-) {
-
-}
-
 pub fn growth_system(
     mut commands: Commands,
     date: Res<CurrentDate>,
@@ -181,35 +173,35 @@ impl Command for PopDieCommand {
 }
 
 pub fn harvest_system(
+    formula_system: Res<FormulaSystem<FST>>,
     date: Res<CurrentDate>,
-    mut farming_pop_query: Query<(&Pop, &SettlementRef, &FarmingPop, &mut Factors)>,
+    mut farming_pop_query: Query<(Entity, &Pop, &SettlementRef, &FarmingPop)>,
     settlement: Query<&Settlement>,
-    settlement_factors: Query<&Factors>,
 ) {
     if !date.is_year {
         return;
     }
-    for (pop, &settlement_ref, farming_pop, mut pop_factors) in farming_pop_query.iter_mut() {
+    for (ent, pop, &settlement_ref, farming_pop) in farming_pop_query.iter_mut() {
         let mut farmed_amount = pop.size as f32;
-        let carrying_capacity = settlement_factors.get(settlement_ref.0).unwrap().factor(FactorType::SettlementCarryingCapacity);
+        let carrying_capacity = formula_system.get_factor(&settlement_ref.fst(FactorType::SettlementCarryingCapacity));
         let comfortable_limit = carrying_capacity / 2.0;
         let settlement_size = settlement.get(settlement_ref.0).unwrap().population;
         // println!("size {} comf {}", settlement_size, comfortable_limit);
         if settlement_size as f32 > comfortable_limit {
-            pop_factors.add(FactorType::PopPressure, 0.1);
+            formula_system.add_factor(&PopRef(ent).fst(FactorType::PopPressure), 0.1);
             // population pressure on available land, seek more
             // world.add_command(Box::new(PopSeekMigrationCommand {
             //     pop: pop.clone(),
             //     pressure: (pop_size / comfortable_limit).powi(2),
             // }))
         } else {
-            pop_factors.add(FactorType::PopPressure, -0.2);
+            formula_system.add_factor(&PopRef(ent).fst(FactorType::PopPressure), -0.2);
         }
         if settlement_size as f32 > carrying_capacity {
             let old_farmed_amount = farmed_amount;
             farmed_amount = pop.size as f32 / settlement_size as f32 * (carrying_capacity + (settlement_size as f32 - carrying_capacity).powf(0.85));
             println!("less is farmed, would be {}, is {}", old_farmed_amount, farmed_amount);
-            pop_factors.add(FactorType::PopPressure, 0.4);
+            formula_system.add_factor(&PopRef(ent).fst(FactorType::PopPressure), 0.4);
         }
         if random::<f32>() > 0.98 {
             // println!("failed harvest! halving farmed goods");

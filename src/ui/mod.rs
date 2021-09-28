@@ -496,7 +496,6 @@ pub fn info_tag_system(
     map_editor_query: Query<&MapEditor>,
     province_info_query: Query<&Province>,
     province_map: Res<ProvinceMap>,
-    pop_query: Query<(&Pop, &Factors)>,
     date: Res<CurrentDate>,
     game_speed: Res<GameSpeed>,
     game_paused: Res<GamePaused>,
